@@ -11,7 +11,8 @@ LDFLAGS =		-L"${VULKAN_PATH}/Lib" -Llibs/glfw/lib-mingw-w64
 
 LIBS =			-lvulkan-1 -lglfw3 -lgdi32 -luser32 -lkernel32
 
-SRCS =			srcs/main.cpp
+SRCS =			srcs/main.cpp \
+				srcs/program.cpp
 
 OBJS =			${SRCS:.cpp=.o}
 
