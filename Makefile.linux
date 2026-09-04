@@ -1,0 +1,28 @@
+
+CXX =			g++
+
+CXXFLAGS =		-Wall -Wextra -Werror
+
+LIBS =			-lvulkan -lglfw
+
+SRCS =			srcs/main.cpp \
+				srcs/program.cpp
+
+OBJS =			${SRCS:.cpp=.o}
+
+NAME =			vulkan
+
+all:			${NAME}
+
+${NAME}:		${OBJS}
+				${CXX} ${OBJS} -o $@ ${LIBS}
+
+%.o:			%.cpp
+				${CXX} ${CXXFLAGS} -c $< -o $@
+
+clean:
+				rm -f srcs/*.o ${NAME}
+
+re:				clean all
+
+.PHONY: all clean re
