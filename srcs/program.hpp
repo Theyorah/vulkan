@@ -15,12 +15,15 @@ public:
 private:
 
     void                        initWindow();
+    void                        initVulkan();
     void                        mainLoop();
-    void                        cleanup();
+    void                        createInstance();
 
-    GLFWwindow *                window;
+    GLFWwindow *                window = nullptr;
     static int constexpr        WIDTH = 800;
     static int constexpr        HEIGHT = 600;
+
+    VkInstance                  instance = VK_NULL_HANDLE;
 
 };
 
