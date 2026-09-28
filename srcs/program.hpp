@@ -19,11 +19,11 @@ private:
     void                        mainLoop();
     void                        createInstance();
 
-    GLFWwindow *                window = nullptr;
+    GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
     static int constexpr        HEIGHT = 600;
 
-    VkInstance                  instance = VK_NULL_HANDLE;
+    VkInstance                  instance;
 
 };
 

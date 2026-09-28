@@ -1,8 +1,26 @@
 #include "program.hpp"
 #include <string>
 #include <stdexcept>
+#include <vector>
+#include <cstring>
 
-Program::Program() {
+static bool    checkValidationLayerSupport() {
+    uint32_t    layerCount;
+    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+    for (VkLayerProperties const &layerProperties : availableLayers)
+        if (strcmp("VK_LAYER_KHRONOS_validation", layerProperties.layerName) == 0)
+            return (true);
+
+    return (false);
+}
+
+Program::Program(){
+    window = nullptr;
+    instance = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
