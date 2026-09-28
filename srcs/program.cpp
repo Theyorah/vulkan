@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstring>
 
-static bool    checkValidationLayerSupport() {
+static bool    checkValidationLayerSupport(char const *validationLayerName) {
     uint32_t    layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -12,13 +12,13 @@ static bool    checkValidationLayerSupport() {
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (VkLayerProperties const &layerProperties : availableLayers)
-        if (strcmp("VK_LAYER_KHRONOS_validation", layerProperties.layerName) == 0)
+        if (strcmp(validationLayerName, layerProperties.layerName) == 0)
             return (true);
 
     return (false);
 }
 
-Program::Program(){
+Program::Program() {
     window = nullptr;
     instance = VK_NULL_HANDLE;
 }
@@ -72,6 +72,11 @@ void    Program::createInstance() {
     char const              **glfwExtensions;
     VkApplicationInfo       appInfo{};
     VkInstanceCreateInfo    createInfo{};
+    char const              *validationLayerName;
+
+    validationLayerName = "VK_LAYER_KHRONOS_validation";
+    if (enableValidationLayers && !checkValidationLayerSupport(validationLayerName))
+        throw std::runtime_error("validation layer unsupported");
 
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scop";
@@ -87,12 +92,17 @@ void    Program::createInstance() {
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = glfwExtensionCount;
     createInfo.ppEnabledExtensionNames = glfwExtensions;
-    createInfo.enabledLayerCount = 0;
-    createInfo.ppEnabledLayerNames = nullptr;
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create Vulkan instance");
+    if (enableValidationLayers) {
+        createInfo.enabledLayerCount = 1;
+        createInfo.ppEnabledLayerNames = &validationLayerName;
+    } else {
+        createInfo.enabledLayerCount = 0;
+        createInfo.ppEnabledLayerNames = nullptr;
     }
+
+    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create Vulkan instance");
 }
 
 void    Program::mainLoop() {

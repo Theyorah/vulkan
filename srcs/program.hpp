@@ -23,6 +23,12 @@ private:
     static int constexpr        WIDTH = 800;
     static int constexpr        HEIGHT = 600;
 
+    #ifdef NDEBUG
+        bool const                  enableValidationLayers = false;
+    #else
+        bool const                  enableValidationLayers = true;
+    #endif
+
     VkInstance                  instance;
 
 };
