@@ -31,13 +31,31 @@ static bool isDeviceSuitable(VkPhysicalDevice const & device) {
     return (false);
 }
 
+static uint32_t getQueueFamilyIndex(VkPhysicalDevice const & device) {
+    uint32_t    queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    for (uint32_t i = 0; i < queueFamilyCount; ++i)
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            return (i);
+
+    return (-1);
+}
+
 Program::Program() {
     window = nullptr;
     instance = VK_NULL_HANDLE;
     physicalDevice = VK_NULL_HANDLE;
+    device = VK_NULL_HANDLE;
+    graphicsQueue = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
+    if (device != VK_NULL_HANDLE) {
+        vkDestroyDevice(device, nullptr);
+    }
     if (instance != VK_NULL_HANDLE) {
         vkDestroyInstance(instance, nullptr);
     }
@@ -51,6 +69,12 @@ void    Program::run() {
     initWindow();
     initVulkan();
     mainLoop();
+}
+
+void    Program::mainLoop() {
+    while (!glfwWindowShouldClose(window)) {
+        glfwPollEvents();
+    }
 }
 
 void    Program::initWindow() {
@@ -117,12 +141,6 @@ void    Program::createInstance() {
         throw std::runtime_error("Failed to create Vulkan instance");
 }
 
-void    Program::mainLoop() {
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-    }
-}
-
 void    Program::pickPhysicalDevice() {
     uint32_t    deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -140,4 +158,27 @@ void    Program::pickPhysicalDevice() {
 
     if (physicalDevice == VK_NULL_HANDLE)
         throw std::runtime_error("No GPU supports graphics commands");
+}
+
+void    Program::createLogicalDevice() {
+    float                       queuePriority = 1.0f;
+    VkDeviceQueueCreateInfo     queueCreateInfo{};
+    VkPhysicalDeviceFeatures    deviceFeatures{};
+    VkDeviceCreateInfo          createInfo{};
+
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = getQueueFamilyIndex(physicalDevice);
+    queueCreateInfo.queueCount = 1;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.pEnabledFeatures = &deviceFeatures;
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device)
+        != VK_SUCCESS)
+        throw std::runtime_error("Failed to create logical device");
+
+    vkGetDeviceQueue(device, getQueueFamilyIndex(physicalDevice), 0, &graphicsQueue);
 }

@@ -19,6 +19,7 @@ private:
     void                        mainLoop();
     void                        createInstance();
     void                        pickPhysicalDevice();
+    void                        createLogicalDevice();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -32,6 +33,8 @@ private:
 
     VkInstance                  instance;
     VkPhysicalDevice            physicalDevice;
+    VkDevice                    device;
+    VkQueue                     graphicsQueue;
 
 };
 
