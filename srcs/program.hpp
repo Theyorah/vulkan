@@ -18,6 +18,7 @@ private:
     void                        initVulkan();
     void                        mainLoop();
     void                        createInstance();
+    void                        pickPhysicalDevice();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -30,6 +31,7 @@ private:
     #endif
 
     VkInstance                  instance;
+    VkPhysicalDevice            physicalDevice;
 
 };
 

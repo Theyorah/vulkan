@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstring>
 
-static bool    checkValidationLayerSupport(char const *validationLayerName) {
+static bool    checkValidationLayerSupport(char const * validationLayerName) {
     uint32_t    layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
@@ -18,9 +18,23 @@ static bool    checkValidationLayerSupport(char const *validationLayerName) {
     return (false);
 }
 
+static bool isDeviceSuitable(VkPhysicalDevice const & device) {
+    uint32_t    queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+    for (VkQueueFamilyProperties const & queueFamily : queueFamilies)
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            return (true);
+
+    return (false);
+}
+
 Program::Program() {
     window = nullptr;
     instance = VK_NULL_HANDLE;
+    physicalDevice = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
@@ -65,6 +79,7 @@ void    Program::initWindow() {
 
 void    Program::initVulkan() {
     createInstance();
+    pickPhysicalDevice();
 }
 
 void    Program::createInstance() {
@@ -76,13 +91,10 @@ void    Program::createInstance() {
 
     validationLayerName = "VK_LAYER_KHRONOS_validation";
     if (enableValidationLayers && !checkValidationLayerSupport(validationLayerName))
-        throw std::runtime_error("validation layer unsupported");
+        throw std::runtime_error("Validation layer unsupported");
 
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Scop";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     glfwExtensionCount = 0;
@@ -109,4 +121,23 @@ void    Program::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
     }
+}
+
+void    Program::pickPhysicalDevice() {
+    uint32_t    deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (deviceCount == 0)
+        throw std::runtime_error("No GPUs with vulkan support");
+    std::vector<VkPhysicalDevice>   devices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+    for (VkPhysicalDevice const & device : devices) {
+        if (isDeviceSuitable(device)) {
+            physicalDevice = device;
+            break ;
+        }
+    }
+
+    if (physicalDevice == VK_NULL_HANDLE)
+        throw std::runtime_error("No GPU supports graphics commands");
 }
