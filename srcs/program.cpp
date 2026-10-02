@@ -185,6 +185,8 @@ void    Program::createLogicalDevice() {
     VkPhysicalDeviceFeatures    deviceFeatures{};
     VkDeviceCreateInfo          createInfo{};
     uint32_t                    queueFamilyIndex;
+    char const *                deviceExtensions[]
+        = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
     queueFamilyIndex = getQueueFamilyIndex(physicalDevice, surface);
 
@@ -197,6 +199,8 @@ void    Program::createLogicalDevice() {
     createInfo.queueCreateInfoCount = 1;
     createInfo.pQueueCreateInfos = &queueCreateInfo;
     createInfo.pEnabledFeatures = &deviceFeatures;
+    createInfo.enabledExtensionCount = 1;
+    createInfo.ppEnabledExtensionNames = deviceExtensions;
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device)
         != VK_SUCCESS)
