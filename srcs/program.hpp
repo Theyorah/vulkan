@@ -18,6 +18,7 @@ private:
     void                        initVulkan();
     void                        mainLoop();
     void                        createInstance();
+    void                        createSurface();
     void                        pickPhysicalDevice();
     void                        createLogicalDevice();
 
@@ -32,6 +33,7 @@ private:
     #endif
 
     VkInstance                  instance;
+    VkSurfaceKHR                surface;
     VkPhysicalDevice            physicalDevice;
     VkDevice                    device;
     VkQueue                     graphicsQueue;

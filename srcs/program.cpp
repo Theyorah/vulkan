@@ -18,28 +18,36 @@ static bool    checkValidationLayerSupport(char const * validationLayerName) {
     return (false);
 }
 
-static bool isDeviceSuitable(VkPhysicalDevice const & device) {
+static bool isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
     uint32_t    queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-    for (VkQueueFamilyProperties const & queueFamily : queueFamilies)
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+        VkBool32 presentSupport = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && presentSupport)
             return (true);
+    }
 
     return (false);
 }
 
-static uint32_t getQueueFamilyIndex(VkPhysicalDevice const & device) {
+static uint32_t getQueueFamilyIndex(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
     uint32_t    queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-    for (uint32_t i = 0; i < queueFamilyCount; ++i)
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            return (i);
+    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
+        VkBool32 presentSupport = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+
+        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && presentSupport)
+            return (true);
+    }
 
     return (-1);
 }
@@ -47,6 +55,7 @@ static uint32_t getQueueFamilyIndex(VkPhysicalDevice const & device) {
 Program::Program() {
     window = nullptr;
     instance = VK_NULL_HANDLE;
+    surface = VK_NULL_HANDLE;
     physicalDevice = VK_NULL_HANDLE;
     device = VK_NULL_HANDLE;
     graphicsQueue = VK_NULL_HANDLE;
@@ -55,6 +64,9 @@ Program::Program() {
 Program::~Program() {
     if (device != VK_NULL_HANDLE) {
         vkDestroyDevice(device, nullptr);
+    }
+    if (surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
     }
     if (instance != VK_NULL_HANDLE) {
         vkDestroyInstance(instance, nullptr);
@@ -103,7 +115,9 @@ void    Program::initWindow() {
 
 void    Program::initVulkan() {
     createInstance();
+    createSurface();
     pickPhysicalDevice();
+    createLogicalDevice();
 }
 
 void    Program::createInstance() {
@@ -141,6 +155,11 @@ void    Program::createInstance() {
         throw std::runtime_error("Failed to create Vulkan instance");
 }
 
+void    Program::createSurface() {
+    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create window surface");
+}
+
 void    Program::pickPhysicalDevice() {
     uint32_t    deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -150,7 +169,7 @@ void    Program::pickPhysicalDevice() {
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
     for (VkPhysicalDevice const & device : devices) {
-        if (isDeviceSuitable(device)) {
+        if (isDeviceSuitable(device, surface)) {
             physicalDevice = device;
             break ;
         }
@@ -165,9 +184,12 @@ void    Program::createLogicalDevice() {
     VkDeviceQueueCreateInfo     queueCreateInfo{};
     VkPhysicalDeviceFeatures    deviceFeatures{};
     VkDeviceCreateInfo          createInfo{};
+    uint32_t                    queueFamilyIndex;
+
+    queueFamilyIndex = getQueueFamilyIndex(physicalDevice, surface);
 
     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = getQueueFamilyIndex(physicalDevice);
+    queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
     queueCreateInfo.queueCount = 1;
     queueCreateInfo.pQueuePriorities = &queuePriority;
 
@@ -180,5 +202,5 @@ void    Program::createLogicalDevice() {
         != VK_SUCCESS)
         throw std::runtime_error("Failed to create logical device");
 
-    vkGetDeviceQueue(device, getQueueFamilyIndex(physicalDevice), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, queueFamilyIndex, 0, &graphicsQueue);
 }
