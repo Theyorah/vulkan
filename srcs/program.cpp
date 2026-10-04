@@ -122,10 +122,10 @@ void    Program::initVulkan() {
 
 void    Program::createInstance() {
     uint32_t                glfwExtensionCount;
-    char const              **glfwExtensions;
+    char const **			glfwExtensions;
     VkApplicationInfo       appInfo{};
     VkInstanceCreateInfo    createInfo{};
-    char const              *validationLayerName;
+    char const *			validationLayerName;
 
     validationLayerName = "VK_LAYER_KHRONOS_validation";
     if (enableValidationLayers && !checkValidationLayerSupport(validationLayerName))
