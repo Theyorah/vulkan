@@ -46,7 +46,7 @@ static uint32_t getQueueFamilyIndex(VkPhysicalDevice const & device, VkSurfaceKH
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 
         if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && presentSupport)
-            return (true);
+            return (i);
     }
 
     return (-1);
@@ -91,7 +91,7 @@ void    Program::mainLoop() {
 
 void    Program::initWindow() {
     if (!glfwInit()) {
-        char const *    description;
+        char const  *description;
         glfwGetError(&description);
         throw std::runtime_error(
             std::string("Error initializing GLFW: ")
@@ -122,10 +122,10 @@ void    Program::initVulkan() {
 
 void    Program::createInstance() {
     uint32_t                glfwExtensionCount;
-    char const **			glfwExtensions;
+    char const              **glfwExtensions;
     VkApplicationInfo       appInfo{};
     VkInstanceCreateInfo    createInfo{};
-    char const *			validationLayerName;
+    char const              *validationLayerName;
 
     validationLayerName = "VK_LAYER_KHRONOS_validation";
     if (enableValidationLayers && !checkValidationLayerSupport(validationLayerName))
@@ -185,7 +185,7 @@ void    Program::createLogicalDevice() {
     VkPhysicalDeviceFeatures    deviceFeatures{};
     VkDeviceCreateInfo          createInfo{};
     uint32_t                    queueFamilyIndex;
-    char const *                deviceExtensions[]
+    char const                  *deviceExtensions[]
         = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
     queueFamilyIndex = getQueueFamilyIndex(physicalDevice, surface);
