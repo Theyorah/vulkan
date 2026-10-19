@@ -1,6 +1,5 @@
 #include "program.hpp"
 #include <cstdint>
-#include <string>
 #include <stdexcept>
 #include <vector>
 #include <cstring>
@@ -25,9 +24,13 @@ struct	QueueFamilyIndices {
 
 static bool    checkValidationLayerSupport(char const * validationLayerName) {
     uint32_t    layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+    if (vkEnumerateInstanceLayerProperties(&layerCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query instance layer properties");
+    if (layerCount == 0)
+        return (false);
     std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+    if (vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query instance layer properties");
 
     for (VkLayerProperties const & layerProperties : availableLayers)
         if (strcmp(validationLayerName, layerProperties.layerName) == 0)
@@ -47,7 +50,8 @@ static QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & device, VkS
 
     for (uint32_t i = 0; i < queueFamilyCount; ++i) {
         VkBool32 presentSupport = VK_FALSE;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+        if (vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport) != VK_SUCCESS)
+            throw std::runtime_error("Failed to query surface support");
 
 		if (presentSupport && !queueFamilyIndices.presentFound) {
 			queueFamilyIndices.presentFamily = i;
@@ -111,27 +115,15 @@ void    Program::mainLoop() {
 }
 
 void    Program::initWindow() {
-    if (!glfwInit()) {
-        char const  *description;
-        glfwGetError(&description);
-        throw std::runtime_error(
-            std::string("Error initializing GLFW: ")
-            + description
-        );
-    }
+    if (!glfwInit())
+        throw std::runtime_error("Failed to initialize GLFW");
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     window = glfwCreateWindow(WIDTH, HEIGHT, "FIRST", nullptr, nullptr);
-    if (!window) {
-        char const *    description;
-        glfwGetError(&description);
-        throw std::runtime_error(
-            std::string("Error creating GLFW window: ")
-            + description
-        );
-    }
+    if (!window) 
+        throw std::runtime_error("Failed to create a window");
 }
 
 void    Program::initVulkan() {
@@ -158,6 +150,8 @@ void    Program::createInstance() {
 
     glfwExtensionCount = 0;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+    if (glfwExtensionCount == 0 || glfwExtensions == nullptr)
+        throw std::runtime_error("Failed to get GLFW Vulkan Extensions");
 
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
@@ -183,11 +177,13 @@ void    Program::createSurface() {
 
 void    Program::pickPhysicalDevice() {
     uint32_t    deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    if (vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical devices");
     if (deviceCount == 0)
         throw std::runtime_error("No GPUs with vulkan support");
     std::vector<VkPhysicalDevice>   devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+    if (vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical devices");
 
     for (VkPhysicalDevice const & device : devices) {
         if (isDeviceSuitable(device, surface)) {
@@ -232,7 +228,7 @@ void    Program::createLogicalDevice() {
 	}
 
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfo.size());
+    createInfo.queueCreateInfoCount = queueCreateInfo.size();
     createInfo.pQueueCreateInfos = queueCreateInfo.data();
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = 1;
