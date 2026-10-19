@@ -1,5 +1,6 @@
 #ifndef PROGRAM
 # define PROGRAM
+#include <vulkan/vulkan_core.h>
 # define GLFW_INCLUDE_VULKAN
 # include <GLFW/glfw3.h>
 
@@ -37,6 +38,7 @@ private:
     VkPhysicalDevice            physicalDevice;
     VkDevice                    device;
     VkQueue                     graphicsQueue;
+	VkQueue						presentQueue;
 
 };
 
