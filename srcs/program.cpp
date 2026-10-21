@@ -22,6 +22,35 @@ struct	QueueFamilyIndices {
 
 };
 
+struct  SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR        capabilities{};
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR>   presentModes;
+};
+
+static SwapChainSupportDetails  querySwapChainSupport(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
+    SwapChainSupportDetails swapCHainSupportDetails;
+    uint32_t                surfaceFormatCount;
+    uint32_t                presentModeCount;
+
+    if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapCHainSupportDetails.capabilities) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical device surface capabilities");
+
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &surfaceFormatCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical device surface formats");
+    swapCHainSupportDetails.formats.resize(surfaceFormatCount);
+    if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &surfaceFormatCount, swapCHainSupportDetails.formats.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical device surface formats");
+
+    if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical device surface present modes");
+    swapCHainSupportDetails.formats.resize(surfaceFormatCount);
+    if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &surfaceFormatCount, swapCHainSupportDetails.presentModes.data()) != VK_SUCCESS)
+        throw std::runtime_error("Failed to query physical device surface present modes");
+
+    return (swapCHainSupportDetails);
+}
+
 static bool    checkValidationLayerSupport(char const * validationLayerName) {
     uint32_t    layerCount;
     if (vkEnumerateInstanceLayerProperties(&layerCount, nullptr) != VK_SUCCESS)
@@ -38,7 +67,6 @@ static bool    checkValidationLayerSupport(char const * validationLayerName) {
 
     return (false);
 }
-
 
 static QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
 	QueueFamilyIndices	queueFamilyIndices;
