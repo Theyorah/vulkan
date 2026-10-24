@@ -9,8 +9,8 @@ struct	QueueFamilyIndices {
 	uint32_t	graphicsFamily = 0;
 	uint32_t	presentFamily = 0;
 
-	bool	graphicsFound = false;
-	bool	presentFound = false;
+	bool		graphicsFound = false;
+	bool		presentFound = false;
 
 	bool	isComplete() const {
 		return (graphicsFound && presentFound);
@@ -22,9 +22,9 @@ struct	QueueFamilyIndices {
 };
 
 struct	SwapChainSupportDetails {
-	VkSurfaceCapabilitiesKHR capabilities{};
-	std::vector<VkSurfaceFormatKHR> formats;
-	std::vector<VkPresentModeKHR> presentModes;
+	VkSurfaceCapabilitiesKHR		capabilities{};
+	std::vector<VkSurfaceFormatKHR>	formats;
+	std::vector<VkPresentModeKHR>	presentModes;
 };
 
 static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
@@ -63,7 +63,7 @@ static bool	checkDeviceExtensionSupport(VkPhysicalDevice const & device, char co
 	if (vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensionProperties.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query extension properties");
 
-	for (VkExtensionProperties const &extensionProperty : extensionProperties)
+	for (VkExtensionProperties const & extensionProperty : extensionProperties)
 		if (strcmp(extension, extensionProperty.extensionName) == 0)
 			return (true);
 
@@ -81,7 +81,7 @@ static bool	checkValidationLayerSupport(char const * validationLayerName) {
 	if (vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query instance layer properties");
 
-	for (VkLayerProperties const &layerProperties : availableLayers)
+	for (VkLayerProperties const & layerProperties : availableLayers)
 		if (strcmp(validationLayerName, layerProperties.layerName) == 0)
 			return (true);
 
@@ -118,10 +118,20 @@ static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice const & device, VkS
 	return (queueFamilyIndices);
 }
 
-static bool isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
-	QueueFamilyIndices indices = findQueueFamilies(device, surface);
+static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
+	QueueFamilyIndices		indices = findQueueFamilies(device, surface);
+	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
 
-	return (indices.isComplete());
+	if (!indices.isComplete())
+		return (false);
+
+	if (!checkDeviceExtensionSupport(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+		return (false);
+
+	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty())
+		return (false);
+
+	return (true);
 }
 
 Program::Program() {
@@ -234,7 +244,7 @@ void Program::pickPhysicalDevice() {
 	if (vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical devices");
 
-	for (VkPhysicalDevice const &device : devices) {
+	for (VkPhysicalDevice const & device : devices) {
 		if (isDeviceSuitable(device, surface)) {
 			physicalDevice = device;
 			break;
