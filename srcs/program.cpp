@@ -60,6 +60,15 @@ static VkSurfaceFormatKHR	chooseSwapChainSurfaceFormat(std::vector<VkSurfaceForm
 	return (availableFormats[0]);
 }
 
+static VkPresentModeKHR	chooseSwapChainPresentMode(std::vector<VkPresentModeKHR> const & availablePresentModes) {
+	for (VkPresentModeKHR const & presentMode : availablePresentModes) {
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR)
+			return (presentMode);
+	}
+
+	return (VK_PRESENT_MODE_FIFO_KHR);
+}
+
 static bool	checkDeviceExtensionSupport(VkPhysicalDevice const & device, char const * extension) {
 	uint32_t	extensionCount;
 
