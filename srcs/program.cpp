@@ -52,6 +52,14 @@ static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & de
 	return (swapCHainSupportDetails);
 }
 
+static VkSurfaceFormatKHR	chooseSwapChainSurfaceFormat(std::vector<VkSurfaceFormatKHR> const & availableFormats) {
+	for (VkSurfaceFormatKHR const & surfaceFormat : availableFormats) {
+		if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+			return (surfaceFormat);
+	}
+	return (availableFormats[0]);
+}
+
 static bool	checkDeviceExtensionSupport(VkPhysicalDevice const & device, char const * extension) {
 	uint32_t	extensionCount;
 
@@ -120,13 +128,14 @@ static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice const & device, VkS
 
 static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
 	QueueFamilyIndices		indices = findQueueFamilies(device, surface);
-	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
 
 	if (!indices.isComplete())
 		return (false);
 
 	if (!checkDeviceExtensionSupport(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
 		return (false);
+
+	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
 
 	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty())
 		return (false);
