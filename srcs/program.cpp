@@ -77,18 +77,18 @@ static VkExtent2D	chooseSwapChainExtent(VkSurfaceCapabilitiesKHR const & capabil
 	int			width;
 	int			height;
 	glfwGetFramebufferSize(window, &width, &height);
-	extent.width = width;
-	extent.height = height;
+	extent.width = static_cast<uint32_t>(width);
+	extent.height = static_cast<uint32_t>(height);
 
 	if (extent.width > capabilities.maxImageExtent.width)
 		extent.width = capabilities.maxImageExtent.width;
 	else if (extent.width < capabilities.minImageExtent.width)
 		extent.width = capabilities.minImageExtent.width;
 
-	if (extent.width > capabilities.maxImageExtent.width)
-		extent.width = capabilities.maxImageExtent.width;
-	else if (extent.width < capabilities.minImageExtent.width)
-		extent.width = capabilities.minImageExtent.width;
+	if (extent.height > capabilities.maxImageExtent.height)
+		extent.height = capabilities.maxImageExtent.height;
+	else if (extent.height < capabilities.minImageExtent.height)
+		extent.height = capabilities.minImageExtent.height;
 
 	return (extent);
 }
