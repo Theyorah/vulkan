@@ -69,6 +69,30 @@ static VkPresentModeKHR	chooseSwapChainPresentMode(std::vector<VkPresentModeKHR>
 	return (VK_PRESENT_MODE_FIFO_KHR);
 }
 
+static VkExtent2D	chooseSwapChainExtent(VkSurfaceCapabilitiesKHR const & capabilities, GLFWwindow * window) {
+	if (capabilities.currentExtent.width != UINT32_MAX)
+		return (capabilities.currentExtent);
+	
+	VkExtent2D	extent;
+	int			width;
+	int			height;
+	glfwGetFramebufferSize(window, &width, &height);
+	extent.width = width;
+	extent.height = height;
+
+	if (extent.width > capabilities.maxImageExtent.width)
+		extent.width = capabilities.maxImageExtent.width;
+	else if (extent.width < capabilities.minImageExtent.width)
+		extent.width = capabilities.minImageExtent.width;
+
+	if (extent.width > capabilities.maxImageExtent.width)
+		extent.width = capabilities.maxImageExtent.width;
+	else if (extent.width < capabilities.minImageExtent.width)
+		extent.width = capabilities.minImageExtent.width;
+
+	return (extent);
+}
+
 static bool	checkDeviceExtensionSupport(VkPhysicalDevice const & device, char const * extension) {
 	uint32_t	extensionCount;
 
