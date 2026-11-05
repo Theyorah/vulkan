@@ -8,6 +8,22 @@ class   Program {
 
 public:
 
+	struct	QueueFamilyIndices {
+		uint32_t	graphicsFamily = 0;
+		uint32_t	presentFamily = 0;
+
+		bool		graphicsFound = false;
+		bool		presentFound = false;
+
+		bool	isComplete() const {
+			return (graphicsFound && presentFound);
+		}
+
+		bool	isSame() const {
+			return (isComplete() && graphicsFamily == presentFamily);
+		}
+	};
+
     Program();
     ~Program();
 
@@ -21,7 +37,9 @@ private:
     void                        createInstance();
     void                        createSurface();
     void                        pickPhysicalDevice();
+	void						findQueueFamilies();
     void                        createLogicalDevice();
+	void						createSwapChain();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -36,9 +54,11 @@ private:
     VkInstance                  instance;
     VkSurfaceKHR                surface;
     VkPhysicalDevice            physicalDevice;
+	QueueFamilyIndices			queueFamilyIndices;
     VkDevice                    device;
     VkQueue                     graphicsQueue;
 	VkQueue						presentQueue;
+	VkSwapchainKHR				swapChain;
 
 };
 

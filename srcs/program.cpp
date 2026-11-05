@@ -5,22 +5,6 @@
 #include <cstring>
 #include <vulkan/vulkan_core.h>
 
-struct	QueueFamilyIndices {
-	uint32_t	graphicsFamily = 0;
-	uint32_t	presentFamily = 0;
-
-	bool		graphicsFound = false;
-	bool		presentFound = false;
-
-	bool	isComplete() const {
-		return (graphicsFound && presentFound);
-	}
-
-	bool	isSame() const {
-		return (isComplete() && graphicsFamily == presentFamily);
-	}
-};
-
 struct	SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR		capabilities{};
 	std::vector<VkSurfaceFormatKHR>	formats;
@@ -129,17 +113,17 @@ static bool	checkValidationLayerSupport(char const * validationLayerName) {
 	return (false);
 }
 
-static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
+void	Program::findQueueFamilies() {
 	QueueFamilyIndices	queueFamilyIndices;
 	uint32_t			queueFamilyCount = 0;
 
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
 
 	for (uint32_t i = 0; i < queueFamilyCount; ++i) {
 		VkBool32 presentSupport = VK_FALSE;
-		if (vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport) != VK_SUCCESS)
+		if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport) != VK_SUCCESS)
 			throw std::runtime_error("Failed to query surface support");
 
 		if (presentSupport && !queueFamilyIndices.presentFound) {
@@ -155,13 +139,9 @@ static QueueFamilyIndices findQueueFamilies(VkPhysicalDevice const & device, VkS
 		if (queueFamilyIndices.isComplete())
 			break;
 	}
-
-	return (queueFamilyIndices);
 }
 
-static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
-	QueueFamilyIndices		indices = findQueueFamilies(device, surface);
-
+static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface, Program::QueueFamilyIndices const & indices) {
 	if (!indices.isComplete())
 		return (false);
 
@@ -169,6 +149,12 @@ static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const
 		return (false);
 
 	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
+
+	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+		return (false);
+
+	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
+		return (false);
 
 	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty())
 		return (false);
@@ -202,19 +188,19 @@ Program::~Program() {
 	glfwTerminate();
 }
 
-void Program::run() {
+void	Program::run() {
 	initWindow();
 	initVulkan();
 	mainLoop();
 }
 
-void Program::mainLoop() {
+void	Program::mainLoop() {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 	}
 }
 
-void Program::initWindow() {
+void	Program::initWindow() {
 	if (!glfwInit())
 		throw std::runtime_error("Failed to initialize GLFW");
 
@@ -226,14 +212,15 @@ void Program::initWindow() {
 		throw std::runtime_error("Failed to create a window");
 }
 
-void Program::initVulkan() {
+void	Program::initVulkan() {
 	createInstance();
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
+	createSwapChain();
 }
 
-void Program::createInstance() {
+void	Program::createInstance() {
 	uint32_t				glfwExtensionCount;
 	char const				**glfwExtensions;
 	VkApplicationInfo		appInfo{};
@@ -271,12 +258,12 @@ void Program::createInstance() {
 		throw std::runtime_error("Failed to create Vulkan instance");
 }
 
-void Program::createSurface() {
+void	Program::createSurface() {
 	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create window surface");
 }
 
-void Program::pickPhysicalDevice() {
+void	Program::pickPhysicalDevice() {
 	uint32_t	deviceCount = 0;
 	if (vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical devices");
@@ -287,7 +274,8 @@ void Program::pickPhysicalDevice() {
 		throw std::runtime_error("Failed to query physical devices");
 
 	for (VkPhysicalDevice const & device : devices) {
-		if (isDeviceSuitable(device, surface)) {
+		findQueueFamilies();
+		if (isDeviceSuitable(device, surface, queueFamilyIndices)) {
 			physicalDevice = device;
 			break;
 		}
@@ -297,15 +285,12 @@ void Program::pickPhysicalDevice() {
 		throw std::runtime_error("No GPU supports graphics commands");
 }
 
-void Program::createLogicalDevice() {
+void	Program::createLogicalDevice() {
 	float									queuePriority = 1.0f;
 	VkPhysicalDeviceFeatures				deviceFeatures{};
 	VkDeviceCreateInfo						createInfo{};
-	QueueFamilyIndices						queueFamilyIndices;
 	char const								*deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	std::vector<VkDeviceQueueCreateInfo>	queueCreateInfo{};
-
-	queueFamilyIndices = findQueueFamilies(physicalDevice, surface);
 
 	queueCreateInfo.emplace_back(VkDeviceQueueCreateInfo{
 		VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -337,4 +322,49 @@ void Program::createLogicalDevice() {
 
 	vkGetDeviceQueue(device, queueFamilyIndices.graphicsFamily, 0, &graphicsQueue);
 	vkGetDeviceQueue(device, queueFamilyIndices.presentFamily, 0, &presentQueue);
+}
+
+void	Program::createSwapChain() {
+	SwapChainSupportDetails	support = querySwapChainSupport(physicalDevice, surface);
+	VkSurfaceFormatKHR		surfaceFormat = chooseSwapChainSurfaceFormat(support.formats);
+	VkPresentModeKHR		presentMode = chooseSwapChainPresentMode(support.presentModes);
+	VkExtent2D				extent = chooseSwapChainExtent(support.capabilities, window);
+
+	uint32_t				imageCount = support.capabilities.minImageCount + 1;
+	if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
+		imageCount = support.capabilities.maxImageCount;
+
+	uint32_t				indices[] = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
+	VkSharingMode			sharingMode;
+	if (queueFamilyIndices.graphicsFamily != queueFamilyIndices.presentFamily)
+		sharingMode = VK_SHARING_MODE_CONCURRENT;
+	else
+		sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	
+	VkSwapchainCreateInfoKHR	createInfo{};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.surface = surface;
+	createInfo.minImageCount = imageCount;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.imageExtent = extent;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	createInfo.imageSharingMode = sharingMode;
+	if (sharingMode == VK_SHARING_MODE_CONCURRENT) {
+		createInfo.queueFamilyIndexCount = 2;
+		createInfo.pQueueFamilyIndices = indices;
+	}
+	else {
+		createInfo.queueFamilyIndexCount = 0;
+		createInfo.pQueueFamilyIndices = nullptr;
+	}
+	createInfo.preTransform = support.capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.presentMode = presentMode;
+	createInfo.clipped = VK_TRUE;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create SwapChain");
 }
