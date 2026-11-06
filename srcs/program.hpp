@@ -40,6 +40,7 @@ private:
 	void						findQueueFamilies();
     void                        createLogicalDevice();
 	void						createSwapChain();
+	void						createImageViews();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -59,6 +60,10 @@ private:
     VkQueue                     graphicsQueue;
 	VkQueue						presentQueue;
 	VkSwapchainKHR				swapChain;
+	VkFormat					swapChainImageFormat{};
+	VkExtent2D					swapChainExtent{};
+	std::vector<VkImage>		swapChainImages;
+	std::vector<VkImageView>	swapChainImageViews;
 
 };
 

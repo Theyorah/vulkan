@@ -113,34 +113,6 @@ static bool	checkValidationLayerSupport(char const * validationLayerName) {
 	return (false);
 }
 
-void	Program::findQueueFamilies() {
-	QueueFamilyIndices	queueFamilyIndices;
-	uint32_t			queueFamilyCount = 0;
-
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
-
-	for (uint32_t i = 0; i < queueFamilyCount; ++i) {
-		VkBool32 presentSupport = VK_FALSE;
-		if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport) != VK_SUCCESS)
-			throw std::runtime_error("Failed to query surface support");
-
-		if (presentSupport && !queueFamilyIndices.presentFound) {
-			queueFamilyIndices.presentFamily = i;
-			queueFamilyIndices.presentFound = true;
-		}
-
-		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && !queueFamilyIndices.graphicsFound) {
-			queueFamilyIndices.graphicsFamily = i;
-			queueFamilyIndices.graphicsFound = true;
-		}
-
-		if (queueFamilyIndices.isComplete())
-			break;
-	}
-}
-
 static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface, Program::QueueFamilyIndices const & indices) {
 	if (!indices.isComplete())
 		return (false);
@@ -162,6 +134,34 @@ static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const
 	return (true);
 }
 
+void	Program::findQueueFamilies() {
+	QueueFamilyIndices	queueFamilyIndices;
+	uint32_t			queueFamilyCount = 0;
+
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+
+	for (size_t i = 0; i < queueFamilyCount; ++i) {
+		VkBool32 presentSupport = VK_FALSE;
+		if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport) != VK_SUCCESS)
+			throw std::runtime_error("Failed to query surface support");
+
+		if (presentSupport && !queueFamilyIndices.presentFound) {
+			queueFamilyIndices.presentFamily = i;
+			queueFamilyIndices.presentFound = true;
+		}
+
+		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && !queueFamilyIndices.graphicsFound) {
+			queueFamilyIndices.graphicsFamily = i;
+			queueFamilyIndices.graphicsFound = true;
+		}
+
+		if (queueFamilyIndices.isComplete())
+			break;
+	}
+}
+
 Program::Program() {
 	window = nullptr;
 	instance = VK_NULL_HANDLE;
@@ -170,9 +170,15 @@ Program::Program() {
 	device = VK_NULL_HANDLE;
 	graphicsQueue = VK_NULL_HANDLE;
 	presentQueue = VK_NULL_HANDLE;
+	swapChain = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
+	for (VkImageView imageView : swapChainImageViews)
+		vkDestroyImageView(device, imageView, nullptr);
+	if (swapChain != VK_NULL_HANDLE) {
+		vkDestroySwapchainKHR(device, swapChain, nullptr);
+	}
 	if (device != VK_NULL_HANDLE) {
 		vkDestroyDevice(device, nullptr);
 	}
@@ -218,6 +224,7 @@ void	Program::initVulkan() {
 	pickPhysicalDevice();
 	createLogicalDevice();
 	createSwapChain();
+	createImageViews();
 }
 
 void	Program::createInstance() {
@@ -325,22 +332,24 @@ void	Program::createLogicalDevice() {
 }
 
 void	Program::createSwapChain() {
-	SwapChainSupportDetails	support = querySwapChainSupport(physicalDevice, surface);
-	VkSurfaceFormatKHR		surfaceFormat = chooseSwapChainSurfaceFormat(support.formats);
-	VkPresentModeKHR		presentMode = chooseSwapChainPresentMode(support.presentModes);
-	VkExtent2D				extent = chooseSwapChainExtent(support.capabilities, window);
+	SwapChainSupportDetails		support = querySwapChainSupport(physicalDevice, surface);
+	VkSurfaceFormatKHR			surfaceFormat = chooseSwapChainSurfaceFormat(support.formats);
+	VkPresentModeKHR			presentMode = chooseSwapChainPresentMode(support.presentModes);
+	VkExtent2D					extent = chooseSwapChainExtent(support.capabilities, window);
 
-	uint32_t				imageCount = support.capabilities.minImageCount + 1;
+	uint32_t					imageCount = support.capabilities.minImageCount + 1;
 	if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
 		imageCount = support.capabilities.maxImageCount;
 
-	uint32_t				indices[] = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
-	VkSharingMode			sharingMode;
+	uint32_t					indices[] = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
+	VkSharingMode				sharingMode;
 	if (queueFamilyIndices.graphicsFamily != queueFamilyIndices.presentFamily)
 		sharingMode = VK_SHARING_MODE_CONCURRENT;
 	else
 		sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	
+
+	swapChainImageFormat = surfaceFormat.format;
+	swapChainExtent = extent;
 	VkSwapchainCreateInfoKHR	createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = surface;
@@ -367,4 +376,31 @@ void	Program::createSwapChain() {
 
 	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create SwapChain");
+
+	uint32_t					image;
+	if (vkGetSwapchainImagesKHR(device, swapChain, &image, nullptr) != VK_SUCCESS)
+		throw std::runtime_error("Failed to query swapchain images");
+	swapChainImages.resize(image);
+	if (vkGetSwapchainImagesKHR(device, swapChain, &image, swapChainImages.data()) != VK_SUCCESS)
+		throw std::runtime_error("Failed to query swapchain images");
+}
+
+void	Program::createImageViews() {
+	swapChainImageViews.resize(swapChainImages.size());
+	for (size_t i = 0; i < swapChainImages.size(); ++i) {
+		VkImageViewCreateInfo	createInfo{};
+
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		createInfo.image = swapChainImages[i];
+		createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		createInfo.format = swapChainImageFormat;
+		createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		createInfo.subresourceRange.baseMipLevel = 0;
+		createInfo.subresourceRange.levelCount = 1;
+		createInfo.subresourceRange.baseArrayLayer = 0;
+		createInfo.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
+			throw std::runtime_error("Failed to create Image View");
+	}
 }
