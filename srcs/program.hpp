@@ -41,6 +41,7 @@ private:
     void                        createLogicalDevice();
 	void						createSwapChain();
 	void						createImageViews();
+	void						createRenderPass();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -64,6 +65,7 @@ private:
 	VkExtent2D					swapChainExtent{};
 	std::vector<VkImage>		swapChainImages;
 	std::vector<VkImageView>	swapChainImageViews;
+	VkRenderPass				renderPass;
 
 };
 
