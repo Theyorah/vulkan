@@ -1,8 +1,9 @@
 #ifndef PROGRAM
 # define PROGRAM
 #include <vulkan/vulkan_core.h>
-# define GLFW_INCLUDE_VULKAN
-# include <GLFW/glfw3.h>
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+#include <vector>
 
 class   Program {
 
@@ -42,6 +43,7 @@ private:
 	void						createSwapChain();
 	void						createImageViews();
 	void						createRenderPass();
+	void						createFrameBuffers();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -66,7 +68,7 @@ private:
 	std::vector<VkImage>		swapChainImages;
 	std::vector<VkImageView>	swapChainImageViews;
 	VkRenderPass				renderPass;
-
+	std::vector<VkFramebuffer>	frameBuffers;
 };
 
 #endif

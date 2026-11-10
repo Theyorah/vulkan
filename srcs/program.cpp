@@ -1,7 +1,6 @@
 #include "program.hpp"
 #include <cstdint>
 #include <stdexcept>
-#include <vector>
 #include <cstring>
 #include <vulkan/vulkan_core.h>
 
@@ -175,11 +174,15 @@ Program::Program() {
 }
 
 Program::~Program() {
+	for (VkFramebuffer frameBuffer : frameBuffers) {
+		vkDestroyFramebuffer(device, frameBuffer, nullptr);
+	}
 	if (renderPass != VK_NULL_HANDLE) {
 		vkDestroyRenderPass(device, renderPass, nullptr);
 	}
-	for (VkImageView imageView : swapChainImageViews)
+	for (VkImageView imageView : swapChainImageViews) {
 		vkDestroyImageView(device, imageView, nullptr);
+	}
 	if (swapChain != VK_NULL_HANDLE) {
 		vkDestroySwapchainKHR(device, swapChain, nullptr);
 	}
@@ -230,6 +233,7 @@ void	Program::initVulkan() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
+	createFrameBuffers();
 }
 
 void	Program::createInstance() {
@@ -455,4 +459,22 @@ void	Program::createRenderPass() {
 
 	if (vkCreateRenderPass(device, &createInfo, nullptr, &renderPass) != VK_SUCCESS)
 		throw std::runtime_error("Failed to create render pass");
+}
+
+void	Program::createFrameBuffers() {
+	frameBuffers.resize(swapChainImageViews.size());
+	for (size_t i = 0; i < frameBuffers.size(); ++i) {
+		VkFramebufferCreateInfo	createInfo{};
+
+		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		createInfo.renderPass = renderPass;
+		createInfo.width = swapChainExtent.width;
+		createInfo.height = swapChainExtent.height;
+		createInfo.attachmentCount = 1;
+		createInfo.pAttachments = &swapChainImageViews[i];
+		createInfo.layers = 1;
+
+		if (vkCreateFramebuffer(device, &createInfo, nullptr, &frameBuffers[i]) != VK_SUCCESS)
+			throw std::runtime_error("Failed to create a framebuffer");
+	}
 }
