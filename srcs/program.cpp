@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <vulkan/vulkan_core.h>
+#include <iostream>
 
 struct	SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR		capabilities{};
@@ -11,9 +12,9 @@ struct	SwapChainSupportDetails {
 };
 
 static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & device, VkSurfaceKHR const & surface) {
-	SwapChainSupportDetails	swapCHainSupportDetails;
-	uint32_t				surfaceFormatCount;
-	uint32_t				presentModeCount;
+	SwapChainSupportDetails	swapCHainSupportDetails{};
+	uint32_t				surfaceFormatCount = 0;
+	uint32_t				presentModeCount = 0;
 
 	if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapCHainSupportDetails.capabilities) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface capabilities");
@@ -27,7 +28,7 @@ static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & de
 
 	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface present modes");
-	swapCHainSupportDetails.formats.resize(surfaceFormatCount);
+	swapCHainSupportDetails.presentModes.resize(presentModeCount);
 	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, swapCHainSupportDetails.presentModes.data())
 		!= VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface present modes");
@@ -113,29 +114,41 @@ static bool	checkValidationLayerSupport(char const * validationLayerName) {
 }
 
 static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface, Program::QueueFamilyIndices const & indices) {
-	if (!indices.isComplete())
+	
+	
+	if (!indices.isComplete()) {
+		std::cout << "caca" << std::endl;
 		return (false);
+	}
 
-	if (!checkDeviceExtensionSupport(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+	if (!checkDeviceExtensionSupport(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
+		std::cout << "pipi" << std::endl;
 		return (false);
+	}
 
 	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
 
-	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))
+	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+		std::cout << "wc" << std::endl;
 		return (false);
+	}
 
-	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR))
+	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
+		std::cout << "toilet" << std::endl;
 		return (false);
+	}
 
-	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty())
+	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty()) {
+		std::cout << "what" << std::endl;
 		return (false);
+	}
 
 	return (true);
 }
 
-void	Program::findQueueFamilies() {
-	QueueFamilyIndices	queueFamilyIndices;
-	uint32_t			queueFamilyCount = 0;
+static Program::QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & physicalDevice, VkSurfaceKHR const & surface) {
+	Program::QueueFamilyIndices	queueFamilyIndices{};
+	uint32_t					queueFamilyCount = 0;
 
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
@@ -159,6 +172,7 @@ void	Program::findQueueFamilies() {
 		if (queueFamilyIndices.isComplete())
 			break;
 	}
+	return (queueFamilyIndices);
 }
 
 Program::Program() {
@@ -290,9 +304,10 @@ void	Program::pickPhysicalDevice() {
 		throw std::runtime_error("Failed to query physical devices");
 
 	for (VkPhysicalDevice const & device : devices) {
-		findQueueFamilies();
-		if (isDeviceSuitable(device, surface, queueFamilyIndices)) {
+		QueueFamilyIndices	indices = findQueueFamilies(device, surface);
+		if (isDeviceSuitable(device, surface, indices)) {
 			physicalDevice = device;
+			queueFamilyIndices = indices;
 			break;
 		}
 	}

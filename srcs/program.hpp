@@ -38,7 +38,6 @@ private:
     void                        createInstance();
     void                        createSurface();
     void                        pickPhysicalDevice();
-	void						findQueueFamilies();
     void                        createLogicalDevice();
 	void						createSwapChain();
 	void						createImageViews();
