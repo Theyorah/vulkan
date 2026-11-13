@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <vulkan/vulkan_core.h>
-#include <iostream>
+#include <fstream>
 
 struct	SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR		capabilities{};
@@ -117,29 +117,24 @@ static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const
 	
 	
 	if (!indices.isComplete()) {
-		std::cout << "caca" << std::endl;
 		return (false);
 	}
 
 	if (!checkDeviceExtensionSupport(device, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
-		std::cout << "pipi" << std::endl;
 		return (false);
 	}
 
 	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
 
 	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
-		std::cout << "wc" << std::endl;
 		return (false);
 	}
 
 	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
-		std::cout << "toilet" << std::endl;
 		return (false);
 	}
 
 	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty()) {
-		std::cout << "what" << std::endl;
 		return (false);
 	}
 
@@ -173,6 +168,27 @@ static Program::QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & ph
 			break;
 	}
 	return (queueFamilyIndices);
+}
+
+static std::vector<uint32_t>	readSprivFile(std::string const & filename) {
+	std::ifstream			file(filename, std::ios::ate | std::ios::binary);
+
+	if (!file.is_open())
+		throw std::runtime_error("Failed to open shader file");
+
+	std::streamsize const	fileSize = static_cast<std::streamsize>(file.tellg());
+
+	if (fileSize <= 0 || fileSize % sizeof(uint32_t) != 0)
+		throw std::runtime_error("Invalid SPIR-V file size");
+	
+	std::vector<uint32_t>	code(static_cast<size_t>(fileSize) / sizeof(uint32_t));
+
+	file.seekg(0);
+
+	if (!file.read(reinterpret_cast<char *>(code.data()), fileSize))
+		throw std::runtime_error("Failed to read shader file");
+
+	return (code);
 }
 
 Program::Program() {
@@ -492,4 +508,18 @@ void	Program::createFrameBuffers() {
 		if (vkCreateFramebuffer(device, &createInfo, nullptr, &frameBuffers[i]) != VK_SUCCESS)
 			throw std::runtime_error("Failed to create a framebuffer");
 	}
+}
+
+VkShaderModule	Program::createShaderModule(std::vector<uint32_t> const & code) {
+	VkShaderModuleCreateInfo	createInfo{};
+	VkShaderModule				shaderModule = VK_NULL_HANDLE;
+
+	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.pCode = code.data();
+	createInfo.codeSize = code.size() * sizeof(uint32_t);
+
+	if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+		throw std::runtime_error("Failed to create Shader Module");
+	
+	return (shaderModule);
 }

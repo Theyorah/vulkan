@@ -43,6 +43,7 @@ private:
 	void						createImageViews();
 	void						createRenderPass();
 	void						createFrameBuffers();
+	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
