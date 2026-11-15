@@ -16,21 +16,24 @@ static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & de
 	uint32_t				surfaceFormatCount = 0;
 	uint32_t				presentModeCount = 0;
 
-	if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &swapCHainSupportDetails.capabilities) != VK_SUCCESS)
+	if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface,
+		&swapCHainSupportDetails.capabilities) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface capabilities");
 
-	if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &surfaceFormatCount, nullptr) != VK_SUCCESS)
+	if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface,
+		&surfaceFormatCount, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface formats");
 	swapCHainSupportDetails.formats.resize(surfaceFormatCount);
-	if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &surfaceFormatCount, swapCHainSupportDetails.formats.data())
-		!= VK_SUCCESS)
+	if (vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface,
+		&surfaceFormatCount, swapCHainSupportDetails.formats.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface formats");
 
-	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr) != VK_SUCCESS)
+	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
+		&presentModeCount, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface present modes");
 	swapCHainSupportDetails.presentModes.resize(presentModeCount);
-	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, swapCHainSupportDetails.presentModes.data())
-		!= VK_SUCCESS)
+	if (vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
+		&presentModeCount, swapCHainSupportDetails.presentModes.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query physical device surface present modes");
 
 	return (swapCHainSupportDetails);
@@ -38,7 +41,8 @@ static SwapChainSupportDetails	querySwapChainSupport(VkPhysicalDevice const & de
 
 static VkSurfaceFormatKHR	chooseSwapChainSurfaceFormat(std::vector<VkSurfaceFormatKHR> const & availableFormats) {
 	for (VkSurfaceFormatKHR const & surfaceFormat : availableFormats) {
-		if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+		if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB
+			&& surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
 			return (surfaceFormat);
 	}
 	return (availableFormats[0]);
@@ -80,12 +84,14 @@ static VkExtent2D	chooseSwapChainExtent(VkSurfaceCapabilitiesKHR const & capabil
 static bool	checkDeviceExtensionSupport(VkPhysicalDevice const & device, char const * extension) {
 	uint32_t	extensionCount;
 
-	if (vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr) != VK_SUCCESS)
+	if (vkEnumerateDeviceExtensionProperties(device, nullptr,
+		&extensionCount, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query extension properties");
 	if (extensionCount == 0)
 		return (false);
 	std::vector<VkExtensionProperties> extensionProperties(extensionCount);
-	if (vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, extensionProperties.data()) != VK_SUCCESS)
+	if (vkEnumerateDeviceExtensionProperties(device, nullptr,
+		&extensionCount, extensionProperties.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query extension properties");
 
 	for (VkExtensionProperties const & extensionProperty : extensionProperties)
@@ -114,8 +120,6 @@ static bool	checkValidationLayerSupport(char const * validationLayerName) {
 }
 
 static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const & surface, Program::QueueFamilyIndices const & indices) {
-	
-	
 	if (!indices.isComplete()) {
 		return (false);
 	}
@@ -124,17 +128,25 @@ static bool	isDeviceSuitable(VkPhysicalDevice const & device, VkSurfaceKHR const
 		return (false);
 	}
 
-	SwapChainSupportDetails	swapChainSupportDetails = querySwapChainSupport(device, surface);
-
-	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+	SwapChainSupportDetails	swapChainSupportDetails
+		= querySwapChainSupport(device, surface);
+	if (!(swapChainSupportDetails.capabilities.supportedUsageFlags
+		& VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)) {
+		return (false);
+	}
+	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha
+		& VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
+		return (false);
+	}
+	if (swapChainSupportDetails.formats.empty()
+		|| swapChainSupportDetails.presentModes.empty()) {
 		return (false);
 	}
 
-	if (!(swapChainSupportDetails.capabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR)) {
-		return (false);
-	}
-
-	if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty()) {
+	VkFormatProperties	depthFormatProperties{};
+	vkGetPhysicalDeviceFormatProperties(device, VK_FORMAT_D32_SFLOAT, &depthFormatProperties);
+	if (!(depthFormatProperties.optimalTilingFeatures
+		& VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)) {
 		return (false);
 	}
 
@@ -147,11 +159,13 @@ static Program::QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & ph
 
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
+		&queueFamilyCount, queueFamilies.data());
 
 	for (size_t i = 0; i < queueFamilyCount; ++i) {
 		VkBool32 presentSupport = VK_FALSE;
-		if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport) != VK_SUCCESS)
+		if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport)
+			!= VK_SUCCESS)
 			throw std::runtime_error("Failed to query surface support");
 
 		if (presentSupport && !queueFamilyIndices.presentFound) {
@@ -159,7 +173,8 @@ static Program::QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & ph
 			queueFamilyIndices.presentFound = true;
 		}
 
-		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT && !queueFamilyIndices.graphicsFound) {
+		if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT
+			&& !queueFamilyIndices.graphicsFound) {
 			queueFamilyIndices.graphicsFamily = i;
 			queueFamilyIndices.graphicsFound = true;
 		}
@@ -170,7 +185,7 @@ static Program::QueueFamilyIndices	findQueueFamilies(VkPhysicalDevice const & ph
 	return (queueFamilyIndices);
 }
 
-static std::vector<uint32_t>	readSprivFile(std::string const & filename) {
+static std::vector<uint32_t>	readSpirvFile(std::string const & filename) {
 	std::ifstream			file(filename, std::ios::ate | std::ios::binary);
 
 	if (!file.is_open())
@@ -336,7 +351,8 @@ void	Program::createLogicalDevice() {
 	float									queuePriority = 1.0f;
 	VkPhysicalDeviceFeatures				deviceFeatures{};
 	VkDeviceCreateInfo						createInfo{};
-	char const								*deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+	char const								*deviceExtensions[]
+		= {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 	std::vector<VkDeviceQueueCreateInfo>	queueCreateInfo{};
 
 	queueCreateInfo.emplace_back(VkDeviceQueueCreateInfo{
@@ -378,10 +394,12 @@ void	Program::createSwapChain() {
 	VkExtent2D					extent = chooseSwapChainExtent(support.capabilities, window);
 
 	uint32_t					imageCount = support.capabilities.minImageCount + 1;
-	if (support.capabilities.maxImageCount > 0 && imageCount > support.capabilities.maxImageCount)
+	if (support.capabilities.maxImageCount > 0
+		&& imageCount > support.capabilities.maxImageCount)
 		imageCount = support.capabilities.maxImageCount;
 
-	uint32_t					indices[] = { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
+	uint32_t					indices[]
+		= { queueFamilyIndices.graphicsFamily, queueFamilyIndices.presentFamily };
 	VkSharingMode				sharingMode;
 	if (queueFamilyIndices.graphicsFamily != queueFamilyIndices.presentFamily)
 		sharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -522,4 +540,113 @@ VkShaderModule	Program::createShaderModule(std::vector<uint32_t> const & code) {
 		throw std::runtime_error("Failed to create Shader Module");
 	
 	return (shaderModule);
+}
+
+void	Program::createGraphicsPipeline() {
+	VkPipelineShaderStageCreateInfo			vertexShaderStageCreateInfo{};
+	VkPipelineShaderStageCreateInfo			fragmentShaderStageCreateInfo{};
+
+	vertexShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	vertexShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	vertexShaderStageCreateInfo.module = createShaderModule(readSpirvFile("shaders/shader.vert.spv"));
+	vertexShaderStageCreateInfo.pName = "main";
+
+	fragmentShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	fragmentShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	fragmentShaderStageCreateInfo.module = createShaderModule(readSpirvFile("shaders/shader.frag.spv"));
+	fragmentShaderStageCreateInfo.pName = "main";
+
+	VkPipelineShaderStageCreateInfo 		shaderStagesCreateInfo[]
+		= { vertexShaderStageCreateInfo, fragmentShaderStageCreateInfo };
+
+	VkVertexInputBindingDescription			vertexInputBindingDescription{};
+
+	vertexInputBindingDescription.binding = 0;
+	vertexInputBindingDescription.stride = sizeof(float) * 3;
+	vertexInputBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription		vertexInputAttributeDescription{};
+
+	vertexInputAttributeDescription.binding = 0;
+	vertexInputAttributeDescription.location = 0;
+	vertexInputAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexInputAttributeDescription.offset = 0;
+
+	VkPipelineVertexInputStateCreateInfo	vertexInputStateCreateInfo{};
+
+	vertexInputStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	vertexInputStateCreateInfo.vertexBindingDescriptionCount = 1;
+	vertexInputStateCreateInfo.pVertexBindingDescriptions
+		= &vertexInputBindingDescription;
+	vertexInputStateCreateInfo.vertexAttributeDescriptionCount = 1;
+	vertexInputStateCreateInfo.pVertexAttributeDescriptions =
+		&vertexInputAttributeDescription;
+	
+	VkPipelineInputAssemblyStateCreateInfo	pipelineInputAssemblyStateCreateInfo{};
+
+	pipelineInputAssemblyStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+	pipelineInputAssemblyStateCreateInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	pipelineInputAssemblyStateCreateInfo.primitiveRestartEnable = VK_FALSE;
+
+	VkViewport								viewport;
+
+	viewport.x = 0;
+	viewport.y = 0;
+	viewport.width = swapChainExtent.width;
+	viewport.height = swapChainExtent.height;
+	viewport.minDepth = 0.0;
+	viewport.maxDepth = 1.0;
+
+	VkRect2D								scissorRect;
+
+	scissorRect.extent = swapChainExtent;
+	scissorRect.offset.x = 0;
+	scissorRect.offset.y = 0;
+
+	VkPipelineViewportStateCreateInfo		viewportStatecreateInfo{};
+
+	viewportStatecreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	viewportStatecreateInfo.viewportCount = 1;
+	viewportStatecreateInfo.pViewports = &viewport;
+	viewportStatecreateInfo.scissorCount = 1;
+	viewportStatecreateInfo.pScissors = &scissorRect;
+
+	VkPipelineRasterizationStateCreateInfo	rasterizationStateCreateInfo{};
+
+	rasterizationStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+	rasterizationStateCreateInfo.depthClampEnable = VK_FALSE;
+	rasterizationStateCreateInfo.rasterizerDiscardEnable = VK_FALSE;
+	rasterizationStateCreateInfo.polygonMode = VK_POLYGON_MODE_FILL;
+	rasterizationStateCreateInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizationStateCreateInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+	rasterizationStateCreateInfo.depthBiasEnable = VK_FALSE;
+	rasterizationStateCreateInfo.depthBiasConstantFactor = 0.0f;
+	rasterizationStateCreateInfo.depthBiasSlopeFactor = 0.0f;
+	rasterizationStateCreateInfo.depthBiasClamp = 0.0f;
+	rasterizationStateCreateInfo.lineWidth = 1.0f;
+
+	VkPipelineMultisampleStateCreateInfo	multisampleStateCreateInfo{};
+
+	multisampleStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+	multisampleStateCreateInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+	multisampleStateCreateInfo.sampleShadingEnable = VK_FALSE;
+	multisampleStateCreateInfo.minSampleShading = 0.0f;
+	multisampleStateCreateInfo.pSampleMask = nullptr;
+	multisampleStateCreateInfo.alphaToCoverageEnable = VK_FALSE;
+	multisampleStateCreateInfo.alphaToOneEnable = VK_FALSE;
+
+	VkPipelineDepthStencilStateCreateInfo	depthStencilStateCreateInfo{};
+
+	depthStencilStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depthStencilStateCreateInfo.depthTestEnable = VK_TRUE;
+	depthStencilStateCreateInfo.depthWriteEnable = VK_TRUE;
+	depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+	depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
+	depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
 }

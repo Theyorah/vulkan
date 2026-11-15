@@ -44,6 +44,7 @@ private:
 	void						createRenderPass();
 	void						createFrameBuffers();
 	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
+	void						createGraphicsPipeline();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -69,6 +70,7 @@ private:
 	std::vector<VkImageView>	swapChainImageViews;
 	VkRenderPass				renderPass;
 	std::vector<VkFramebuffer>	frameBuffers;
+	VkPipeline					graphicsPipeline;
 };
 
 #endif
