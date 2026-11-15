@@ -42,6 +42,9 @@ private:
 	void						createSwapChain();
 	void						createImageViews();
 	void						createRenderPass();
+	uint32_t					findMemoryType(uint32_t const & typeFilter,
+		VkMemoryPropertyFlags const & properties);
+	void						createDepthRessources();
 	void						createFrameBuffers();
 	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
 	void						createGraphicsPipeline();
@@ -69,7 +72,11 @@ private:
 	std::vector<VkImage>		swapChainImages;
 	std::vector<VkImageView>	swapChainImageViews;
 	VkRenderPass				renderPass;
+	std::vector<VkImage>		depthImages;
+	std::vector<VkDeviceMemory>	depthImageMemories;
+	std::vector<VkImageView>	depthImageViews;
 	std::vector<VkFramebuffer>	frameBuffers;
+	VkPipelineLayout			pipelineLayout;
 	VkPipeline					graphicsPipeline;
 };
 

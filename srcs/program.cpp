@@ -216,11 +216,28 @@ Program::Program() {
 	presentQueue = VK_NULL_HANDLE;
 	swapChain = VK_NULL_HANDLE;
 	renderPass = VK_NULL_HANDLE;
+	pipelineLayout = VK_NULL_HANDLE;
+	graphicsPipeline = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
+	if (graphicsPipeline != VK_NULL_HANDLE) {
+		vkDestroyPipeline(device, graphicsPipeline, nullptr);
+	}
+	if (pipelineLayout != VK_NULL_HANDLE) {
+		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	}
 	for (VkFramebuffer frameBuffer : frameBuffers) {
 		vkDestroyFramebuffer(device, frameBuffer, nullptr);
+	}
+	for (VkImageView imageView : depthImageViews) {
+		vkDestroyImageView(device, imageView, nullptr);
+	}
+	for (VkImage image : depthImages) {
+		vkDestroyImage(device, image, nullptr);
+	}
+	for (VkDeviceMemory memory : depthImageMemories) {
+		vkFreeMemory(device, memory, nullptr);
 	}
 	if (renderPass != VK_NULL_HANDLE) {
 		vkDestroyRenderPass(device, renderPass, nullptr);
@@ -278,6 +295,7 @@ void	Program::initVulkan() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
+	createDepthRessources();
 	createFrameBuffers();
 }
 
@@ -480,27 +498,55 @@ void	Program::createRenderPass() {
 	colorAttachmentRef.attachment = 0;
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+	VkAttachmentDescription	depthAttachment{};
+
+	depthAttachment.format = VK_FORMAT_D32_SFLOAT;
+	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference	depthAttachmentRef{};
+
+	depthAttachmentRef.attachment = 1;
+	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
 	VkSubpassDescription	subpass{};
 
 	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpass.colorAttachmentCount = 1;
 	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
 	VkSubpassDependency		dependency{};
 
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcStageMask =
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+		VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependency.dstStageMask =
+		VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+		VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+		VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	dependency.dstAccessMask =
+		VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+		VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+	VkAttachmentDescription	attachments[]
+	 = { colorAttachment, depthAttachment };
 
 	VkRenderPassCreateInfo	createInfo{};
 
-
 	createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	createInfo.attachmentCount = 1;
-	createInfo.pAttachments = &colorAttachment;
+	createInfo.attachmentCount = 2;
+	createInfo.pAttachments = attachments;
 	createInfo.subpassCount = 1;
 	createInfo.pSubpasses = &subpass;
 	createInfo.dependencyCount = 1;
@@ -510,17 +556,94 @@ void	Program::createRenderPass() {
 		throw std::runtime_error("Failed to create render pass");
 }
 
+uint32_t	Program::findMemoryType(uint32_t const & typeFilter, VkMemoryPropertyFlags const & properties) {
+	VkPhysicalDeviceMemoryProperties	memoryProperties{};
+
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i) {
+		if ((typeFilter & (1u << i))
+			&& (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+			return (i);
+	}
+
+	throw std::runtime_error("Failed to find suitable memory type");
+}
+
+void	Program::createDepthRessources() {
+	depthImages.resize(swapChainImages.size());
+	depthImageMemories.resize(swapChainImages.size());
+	depthImageViews.resize(swapChainImages.size());
+
+	for (size_t i = 0; i < depthImages.size(); ++i) {
+		VkImageCreateInfo	createInfo{};
+
+		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		createInfo.imageType = VK_IMAGE_TYPE_2D;
+		createInfo.format = VK_FORMAT_D32_SFLOAT;
+		createInfo.extent
+			= VkExtent3D(swapChainExtent.width, swapChainExtent.height, 1);
+		createInfo.mipLevels = 1;
+		createInfo.arrayLayers = 1;
+		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		createInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		if (vkCreateImage(device, &createInfo, nullptr, &depthImages[i])
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to create depth Image");
+
+		VkMemoryRequirements	memoryRequirements{};
+		vkGetImageMemoryRequirements(device, depthImages[i], &memoryRequirements);
+
+		VkMemoryAllocateInfo	allocateInfo{};
+		allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocateInfo.allocationSize = memoryRequirements.size;
+		allocateInfo.memoryTypeIndex = findMemoryType(
+			memoryRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		
+		if (vkAllocateMemory(device, &allocateInfo, nullptr, &depthImageMemories[i])
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to allocate depth image memory");
+		
+		if (vkBindImageMemory(device, depthImages[i], depthImageMemories[i], 0)
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to bind depth image memory");
+
+		VkImageViewCreateInfo	viewCreateInfo{};
+
+		viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewCreateInfo.image = depthImages[i];
+		viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewCreateInfo.format = VK_FORMAT_D32_SFLOAT;
+		viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		viewCreateInfo.subresourceRange.baseMipLevel = 0;
+		viewCreateInfo.subresourceRange.levelCount = 1;
+		viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+		viewCreateInfo.subresourceRange.layerCount = 1;
+
+		if (vkCreateImageView(device, &viewCreateInfo, nullptr, &depthImageViews[i])
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to create depth image view");
+	}
+}
+
 void	Program::createFrameBuffers() {
 	frameBuffers.resize(swapChainImageViews.size());
 	for (size_t i = 0; i < frameBuffers.size(); ++i) {
 		VkFramebufferCreateInfo	createInfo{};
-
+		VkImageView				attachments[] = {
+			swapChainImageViews[i],
+			depthImageViews[i]
+		};
 		createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		createInfo.renderPass = renderPass;
 		createInfo.width = swapChainExtent.width;
 		createInfo.height = swapChainExtent.height;
-		createInfo.attachmentCount = 1;
-		createInfo.pAttachments = &swapChainImageViews[i];
+		createInfo.attachmentCount = 2;
+		createInfo.pAttachments = attachments;
 		createInfo.layers = 1;
 
 		if (vkCreateFramebuffer(device, &createInfo, nullptr, &frameBuffers[i]) != VK_SUCCESS)
@@ -649,4 +772,57 @@ void	Program::createGraphicsPipeline() {
 	depthStencilStateCreateInfo.depthCompareOp = VK_COMPARE_OP_LESS;
 	depthStencilStateCreateInfo.depthBoundsTestEnable = VK_FALSE;
 	depthStencilStateCreateInfo.stencilTestEnable = VK_FALSE;
+
+	VkPipelineLayoutCreateInfo				layoutCreateInfo{};
+
+	layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	
+	if (vkCreatePipelineLayout(device, &layoutCreateInfo, nullptr, &pipelineLayout)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to create pipeline layout");
+
+	VkPipelineColorBlendAttachmentState		colorBlendAttachment{};
+
+	colorBlendAttachment.blendEnable = VK_FALSE;
+	colorBlendAttachment.colorWriteMask =
+		VK_COLOR_COMPONENT_R_BIT |
+		VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT |
+		VK_COLOR_COMPONENT_A_BIT;
+
+	VkPipelineColorBlendStateCreateInfo		colorBlendStateCreateInfo{};
+
+	colorBlendStateCreateInfo.sType
+		= VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
+	colorBlendStateCreateInfo.attachmentCount = 1;
+	colorBlendStateCreateInfo.pAttachments = &colorBlendAttachment;
+
+	VkGraphicsPipelineCreateInfo			createInfo{};
+
+	createInfo.sType
+		= VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	createInfo.stageCount = 2;
+	createInfo.pStages = shaderStagesCreateInfo;
+	createInfo.pVertexInputState = &vertexInputStateCreateInfo;
+	createInfo.pInputAssemblyState = &pipelineInputAssemblyStateCreateInfo;
+	createInfo.pViewportState = &viewportStatecreateInfo;
+	createInfo.pRasterizationState = &rasterizationStateCreateInfo;
+	createInfo.pMultisampleState = &multisampleStateCreateInfo;
+	createInfo.pDepthStencilState = &depthStencilStateCreateInfo;
+	createInfo.pColorBlendState = &colorBlendStateCreateInfo;
+	createInfo.layout = pipelineLayout;
+	createInfo.renderPass = renderPass;
+	createInfo.subpass = 0;
+	createInfo.basePipelineHandle = VK_NULL_HANDLE;
+	createInfo.basePipelineIndex = -1;
+
+	VkResult result = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
+		&createInfo, nullptr, &graphicsPipeline);
+		
+	vkDestroyShaderModule(device, vertexShaderStageCreateInfo.module, nullptr);
+	vkDestroyShaderModule(device, fragmentShaderStageCreateInfo.module, nullptr);
+
+	if (result != VK_SUCCESS)
+		throw std::runtime_error("Failed to create graphics pipeline");
 }
