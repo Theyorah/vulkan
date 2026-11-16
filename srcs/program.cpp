@@ -218,6 +218,7 @@ Program::Program() {
 	renderPass = VK_NULL_HANDLE;
 	pipelineLayout = VK_NULL_HANDLE;
 	graphicsPipeline = VK_NULL_HANDLE;
+	commandPool = VK_NULL_HANDLE;
 }
 
 Program::~Program() {
@@ -292,6 +293,7 @@ void	Program::initVulkan() {
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
+	createCommandPool();
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
@@ -581,7 +583,7 @@ void	Program::createDepthRessources() {
 		createInfo.imageType = VK_IMAGE_TYPE_2D;
 		createInfo.format = VK_FORMAT_D32_SFLOAT;
 		createInfo.extent
-			= VkExtent3D(swapChainExtent.width, swapChainExtent.height, 1);
+			= VkExtent3D{swapChainExtent.width, swapChainExtent.height, 1};
 		createInfo.mipLevels = 1;
 		createInfo.arrayLayers = 1;
 		createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -825,4 +827,16 @@ void	Program::createGraphicsPipeline() {
 
 	if (result != VK_SUCCESS)
 		throw std::runtime_error("Failed to create graphics pipeline");
+}
+
+void	Program::createCommandPool() {
+	VkCommandPoolCreateInfo	createInfo{};
+
+	createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	createInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
+
+	if (vkCreateCommandPool(device, &createInfo, nullptr, &commandPool)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to create command pool");
 }

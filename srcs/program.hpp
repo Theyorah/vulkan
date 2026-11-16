@@ -48,6 +48,7 @@ private:
 	void						createFrameBuffers();
 	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
 	void						createGraphicsPipeline();
+	void						createCommandPool();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -78,6 +79,7 @@ private:
 	std::vector<VkFramebuffer>	frameBuffers;
 	VkPipelineLayout			pipelineLayout;
 	VkPipeline					graphicsPipeline;
+	VkCommandPool				commandPool;
 };
 
 #endif
