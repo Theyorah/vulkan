@@ -222,6 +222,12 @@ Program::Program() {
 }
 
 Program::~Program() {
+	if (device != VK_NULL_HANDLE) {
+		vkDeviceWaitIdle(device);
+	}
+	if (commandPool != VK_NULL_HANDLE) {
+		vkDestroyCommandPool(device, commandPool, nullptr);
+	}
 	if (graphicsPipeline != VK_NULL_HANDLE) {
 		vkDestroyPipeline(device, graphicsPipeline, nullptr);
 	}
@@ -297,8 +303,10 @@ void	Program::initVulkan() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
+	createGraphicsPipeline();
 	createDepthRessources();
 	createFrameBuffers();
+	createCommandBuffers();
 }
 
 void	Program::createInstance() {
@@ -839,4 +847,18 @@ void	Program::createCommandPool() {
 	if (vkCreateCommandPool(device, &createInfo, nullptr, &commandPool)
 		!= VK_SUCCESS)
 		throw std::runtime_error("Failed to create command pool");
+}
+
+void	Program::createCommandBuffers() {
+	commandBuffers.resize(frameBuffers.size());
+	VkCommandBufferAllocateInfo	allocateInfo{};
+
+	allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocateInfo.commandPool = commandPool;
+	allocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocateInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
+
+	if (vkAllocateCommandBuffers(device, &allocateInfo, commandBuffers.data())
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate command buffers");
 }

@@ -49,6 +49,7 @@ private:
 	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
 	void						createGraphicsPipeline();
 	void						createCommandPool();
+	void						createCommandBuffers();
 
     GLFWwindow *                window;
     static int constexpr        WIDTH = 800;
@@ -60,26 +61,27 @@ private:
         bool const                  enableValidationLayers = true;
     #endif
 
-    VkInstance                  instance;
-    VkSurfaceKHR                surface;
-    VkPhysicalDevice            physicalDevice;
-	QueueFamilyIndices			queueFamilyIndices;
-    VkDevice                    device;
-    VkQueue                     graphicsQueue;
-	VkQueue						presentQueue;
-	VkSwapchainKHR				swapChain;
-	VkFormat					swapChainImageFormat{};
-	VkExtent2D					swapChainExtent{};
-	std::vector<VkImage>		swapChainImages;
-	std::vector<VkImageView>	swapChainImageViews;
-	VkRenderPass				renderPass;
-	std::vector<VkImage>		depthImages;
-	std::vector<VkDeviceMemory>	depthImageMemories;
-	std::vector<VkImageView>	depthImageViews;
-	std::vector<VkFramebuffer>	frameBuffers;
-	VkPipelineLayout			pipelineLayout;
-	VkPipeline					graphicsPipeline;
-	VkCommandPool				commandPool;
+    VkInstance						instance;
+    VkSurfaceKHR					surface;
+    VkPhysicalDevice				physicalDevice;
+	QueueFamilyIndices				queueFamilyIndices;
+    VkDevice						device;
+    VkQueue							graphicsQueue;
+	VkQueue							presentQueue;
+	VkSwapchainKHR					swapChain;
+	VkFormat						swapChainImageFormat{};
+	VkExtent2D						swapChainExtent{};
+	std::vector<VkImage>			swapChainImages;
+	std::vector<VkImageView>		swapChainImageViews;
+	VkRenderPass					renderPass;
+	std::vector<VkImage>			depthImages;
+	std::vector<VkDeviceMemory>		depthImageMemories;
+	std::vector<VkImageView>		depthImageViews;
+	std::vector<VkFramebuffer>		frameBuffers;
+	VkPipelineLayout				pipelineLayout;
+	VkPipeline						graphicsPipeline;
+	VkCommandPool					commandPool;
+	std::vector<VkCommandBuffer>	commandBuffers;
 };
 
 #endif
