@@ -1,11 +1,12 @@
 #ifndef PROGRAM
 # define PROGRAM
+#include <cstdint>
 #include <vulkan/vulkan_core.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vector>
 
-class   Program {
+class	Program {
 
 public:
 
@@ -25,20 +26,26 @@ public:
 		}
 	};
 
-    Program();
-    ~Program();
+	struct	Vertex {
+		float	x;
+		float	y;
+		float	z;
+	};
 
-    void    run();
+	Program();
+	~Program();
+
+	void	run();
 
 private:
 
-    void                        initWindow();
-    void                        initVulkan();
-    void                        mainLoop();
-    void                        createInstance();
-    void                        createSurface();
-    void                        pickPhysicalDevice();
-    void                        createLogicalDevice();
+	void						initWindow();
+	void						initVulkan();
+	void						mainLoop();
+	void						createInstance();
+	void						createSurface();
+	void						pickPhysicalDevice();
+	void						createLogicalDevice();
 	void						createSwapChain();
 	void						createImageViews();
 	void						createRenderPass();
@@ -51,14 +58,14 @@ private:
 	void						createCommandPool();
 	void						createCommandBuffers();
 
-    GLFWwindow *                window;
-    static int constexpr        WIDTH = 800;
-    static int constexpr        HEIGHT = 600;
+	GLFWwindow *					window;
+	static int constexpr			WIDTH = 800;
+	static int constexpr			HEIGHT = 600;
 
     #ifdef NDEBUG
-        bool const                  enableValidationLayers = false;
+		bool const					enableValidationLayers = false;
     #else
-        bool const                  enableValidationLayers = true;
+		bool const					enableValidationLayers = true;
     #endif
 
     VkInstance						instance;
@@ -82,6 +89,10 @@ private:
 	VkPipeline						graphicsPipeline;
 	VkCommandPool					commandPool;
 	std::vector<VkCommandBuffer>	commandBuffers;
+	std::vector<Vertex>				vertices;
+	std::vector<uint32_t>			indices;
+	VkBuffer						vertexBuffer;
+	VkDeviceMemory					vertexBufferMemory;
 };
 
 #endif
