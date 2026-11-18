@@ -727,7 +727,7 @@ void	Program::createGraphicsPipeline() {
 	VkVertexInputBindingDescription			vertexInputBindingDescription{};
 
 	vertexInputBindingDescription.binding = 0;
-	vertexInputBindingDescription.stride = sizeof(float) * 3;
+	vertexInputBindingDescription.stride = sizeof(Vertex);
 	vertexInputBindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
 	VkVertexInputAttributeDescription		vertexInputAttributeDescription{};
@@ -895,4 +895,38 @@ void	Program::createCommandBuffers() {
 		throw std::runtime_error("Failed to allocate command buffers");
 }
 
+void	Program::createVertexBuffer() {
+	VkBufferCreateInfo	createInfo{};
 
+	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size = vertices.size() * sizeof(Vertex);
+	createInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &createInfo, nullptr, &vertexBuffer)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to create vertex buffer");
+
+	VkMemoryRequirements	memoryRequirements{};
+	vkGetBufferMemoryRequirements(device, vertexBuffer, &memoryRequirements);
+
+	VkMemoryAllocateInfo	allocateInfo{};
+	allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocateInfo.allocationSize = memoryRequirements.size;
+	allocateInfo.memoryTypeIndex = findMemoryType(
+		memoryRequirements.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+	
+	if (vkAllocateMemory(device, &allocateInfo, nullptr, &vertexBufferMemory)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate vertex buffer memory");
+	
+	if (vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to bind vertex buffer memory");
+	
+	void	*data;
+	if (vkMapMemory(device, vertexBufferMemory, 0, )
+		!= VK_SUCCESS)
+}

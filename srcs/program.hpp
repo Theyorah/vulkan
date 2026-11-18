@@ -57,6 +57,7 @@ private:
 	void						createGraphicsPipeline();
 	void						createCommandPool();
 	void						createCommandBuffers();
+	void						createVertexBuffer();
 
 	GLFWwindow *					window;
 	static int constexpr			WIDTH = 800;
