@@ -59,6 +59,7 @@ private:
 	void						createCommandBuffers();
 	void						createVertexBuffer();
 	void						createIndexBuffer();
+	void						recordCommandBuffers();
 
 	GLFWwindow *					window;
 	static int constexpr			WIDTH = 800;

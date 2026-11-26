@@ -1206,3 +1206,45 @@ void	Program::createIndexBuffer() {
 	vkDestroyBuffer(device, stagingBuffer, nullptr);
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
+
+void	Program::recordCommandBuffers() {
+	for (size_t i = 0; i < commandBuffers.size(); ++i) {
+		VkCommandBufferBeginInfo	beginInfo{};
+
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo)
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to begin command buffer");
+		
+		VkClearValue				clearValues[2]{};
+		clearValues[0].color.float32[0] = 0.0f;
+		clearValues[0].color.float32[1] = 0.0f;
+		clearValues[0].color.float32[2] = 0.0f;
+		clearValues[0].color.float32[3] = 1.0f;
+		clearValues[1].depthStencil.depth = 1.0f;
+		clearValues[1].depthStencil.stencil = 0;
+		VkRenderPassBeginInfo		renderPassBeginInfo{};
+
+		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassBeginInfo.renderPass = renderPass;
+		renderPassBeginInfo.framebuffer = frameBuffers[i];
+		renderPassBeginInfo.renderArea.offset = {0, 0};
+		renderPassBeginInfo.renderArea.extent = swapChainExtent;
+		renderPassBeginInfo.clearValueCount = 2;
+		renderPassBeginInfo.pClearValues = clearValues;
+
+		vkCmdBeginRenderPass(commandBuffers[i],
+			&renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBindPipeline(commandBuffers[i],
+			VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		VkDeviceSize				offset = 0;
+		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, &vertexBuffer, &offset);
+		vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdDrawIndexed(commandBuffers[i],
+			static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+		vkCmdEndRenderPass(commandBuffers[i]);
+		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
+			throw std::runtime_error("Failed to end command buffer");
+	}
+}
