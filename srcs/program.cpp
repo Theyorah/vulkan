@@ -468,7 +468,9 @@ void	Program::createSwapChain() {
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
+
 	VkSwapchainCreateInfoKHR	createInfo{};
+
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = surface;
 	createInfo.minImageCount = imageCount;
@@ -640,6 +642,7 @@ void	Program::createDepthRessources() {
 		vkGetImageMemoryRequirements(device, depthImages[i], &memoryRequirements);
 
 		VkMemoryAllocateInfo	allocateInfo{};
+
 		allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocateInfo.allocationSize = memoryRequirements.size;
 		allocateInfo.memoryTypeIndex = findMemoryType(
@@ -955,18 +958,26 @@ void	Program::createVertexBuffer() {
 		);
 	
 	if (vkAllocateMemory(device, &stagingAllocateInfo, nullptr, &stagingBufferMemory)
-		!= VK_SUCCESS)
+		!= VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		throw std::runtime_error("Failed to allocate staging vertex buffer memory");
+	}
 	
 	if (vkBindBufferMemory(device, stagingBuffer, stagingBufferMemory, 0)
-		!= VK_SUCCESS)
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		throw std::runtime_error("Failed to bind staging vertex buffer memory");
+	}
 
 	void						*data;
 
 	if (vkMapMemory(device, stagingBufferMemory, 0, VK_WHOLE_SIZE, 0, &data)
-		!= VK_SUCCESS)
-		throw std::runtime_error("Failed to map memory");	
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to map memory");
+	}
 
 	memcpy(data, vertices.data(), vertices.size() * sizeof(Vertex));
 	vkUnmapMemory(device, stagingBufferMemory);
@@ -980,8 +991,11 @@ void	Program::createVertexBuffer() {
 	tmpBufferInfo.commandBufferCount = 1;
 
 	if (vkAllocateCommandBuffers(device, &tmpBufferInfo, &tmpBuffer)
-		!= VK_SUCCESS)
-		throw std::runtime_error("Failed to allocate command buffer");
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to allocate command buffer");	
+	}
 
 	VkCommandBufferBeginInfo	beginInfo{};
 
@@ -989,8 +1003,12 @@ void	Program::createVertexBuffer() {
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
 	if (vkBeginCommandBuffer(tmpBuffer, &beginInfo)
-		!= VK_SUCCESS)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		throw std::runtime_error("Failed to begin command buffer");
+	}
 	
 	VkBufferCopy				copyRegion{};
 
@@ -1000,8 +1018,12 @@ void	Program::createVertexBuffer() {
 	vkCmdCopyBuffer(tmpBuffer, stagingBuffer, vertexBuffer, 1, &copyRegion);
 
 	if (vkEndCommandBuffer(tmpBuffer)
-		!= VK_SUCCESS)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		throw std::runtime_error("Failed to end command buffer");
+	}
 
 	VkSubmitInfo				submitInfo{};
 
@@ -1010,10 +1032,14 @@ void	Program::createVertexBuffer() {
 	submitInfo.pCommandBuffers = &tmpBuffer;
 
 	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE)
-		!= VK_SUCCESS)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
 		throw std::runtime_error("Failed to submit commands to queue");
+	}
 
-	if (vkDeviceWaitIdle(device) != VK_SUCCESS)
+	if (vkQueueWaitIdle(graphicsQueue) != VK_SUCCESS)
 		throw std::runtime_error("Failed to wait for GPU");
 
 	vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
