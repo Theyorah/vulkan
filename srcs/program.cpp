@@ -221,6 +221,8 @@ Program::Program() {
 	commandPool = VK_NULL_HANDLE;
 	vertexBuffer = VK_NULL_HANDLE;
 	vertexBufferMemory = VK_NULL_HANDLE;
+	indexBuffer = VK_NULL_HANDLE;
+	indexBufferMemory = VK_NULL_HANDLE;
 	vertices = {
 		{-0.5, -0.5, -0.5},
 		{0.5, -0.5, -0.5},
@@ -250,6 +252,12 @@ Program::Program() {
 Program::~Program() {
 	if (device != VK_NULL_HANDLE) {
 		vkDeviceWaitIdle(device);
+	}
+	if (indexBuffer != VK_NULL_HANDLE) {
+		vkDestroyBuffer(device, indexBuffer, nullptr);
+	}
+	if (indexBufferMemory != VK_NULL_HANDLE) {
+		vkFreeMemory(device, indexBufferMemory, nullptr);
 	}
 	if (vertexBuffer != VK_NULL_HANDLE) {
 		vkDestroyBuffer(device, vertexBuffer, nullptr);
@@ -338,7 +346,10 @@ void	Program::initVulkan() {
 	createGraphicsPipeline();
 	createDepthRessources();
 	createFrameBuffers();
+	createCommandPool();
 	createCommandBuffers();
+	createVertexBuffer();
+	createIndexBuffer();
 }
 
 void	Program::createInstance() {
@@ -1016,6 +1027,155 @@ void	Program::createVertexBuffer() {
 	copyRegion.srcOffset = 0;
 	copyRegion.size = vertices.size() * sizeof(Vertex);
 	vkCmdCopyBuffer(tmpBuffer, stagingBuffer, vertexBuffer, 1, &copyRegion);
+
+	if (vkEndCommandBuffer(tmpBuffer)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to end command buffer");
+	}
+
+	VkSubmitInfo				submitInfo{};
+
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &tmpBuffer;
+
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to submit commands to queue");
+	}
+
+	if (vkQueueWaitIdle(graphicsQueue) != VK_SUCCESS)
+		throw std::runtime_error("Failed to wait for GPU");
+
+	vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+	vkDestroyBuffer(device, stagingBuffer, nullptr);
+	vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void	Program::createIndexBuffer() {
+	VkBufferCreateInfo			createInfo{};
+
+	createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	createInfo.size = indices.size() * sizeof(uint32_t);
+	createInfo.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+	createInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &createInfo, nullptr, &indexBuffer)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to create index buffer");
+
+	VkMemoryRequirements		memoryRequirements{};
+
+	vkGetBufferMemoryRequirements(device, indexBuffer, &memoryRequirements);
+
+	VkMemoryAllocateInfo		allocateInfo{};
+
+	allocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocateInfo.allocationSize = memoryRequirements.size;
+	allocateInfo.memoryTypeIndex = findMemoryType(
+		memoryRequirements.memoryTypeBits,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+		);
+	
+	if (vkAllocateMemory(device, &allocateInfo, nullptr, &indexBufferMemory)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to allocate index buffer memory");
+	
+	if (vkBindBufferMemory(device, indexBuffer, indexBufferMemory, 0)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to bind index buffer memory");
+
+	VkBuffer					stagingBuffer = VK_NULL_HANDLE;
+	VkBufferCreateInfo			stagingBufferCreateInfo{};
+
+	stagingBufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	stagingBufferCreateInfo.size = indices.size() * sizeof(uint32_t);
+	stagingBufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	stagingBufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(device, &stagingBufferCreateInfo, nullptr, &stagingBuffer)
+		!= VK_SUCCESS)
+		throw std::runtime_error("Failed to create staging index buffer");
+
+	VkDeviceMemory				stagingBufferMemory = VK_NULL_HANDLE;
+	VkMemoryRequirements		stagingMemoryRequirements{};
+
+	vkGetBufferMemoryRequirements(device, stagingBuffer, &stagingMemoryRequirements);
+
+	VkMemoryAllocateInfo		stagingAllocateInfo{};
+
+	stagingAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	stagingAllocateInfo.allocationSize = stagingMemoryRequirements.size;
+	stagingAllocateInfo.memoryTypeIndex = findMemoryType(
+		stagingMemoryRequirements.memoryTypeBits,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+	
+	if (vkAllocateMemory(device, &stagingAllocateInfo, nullptr, &stagingBufferMemory)
+		!= VK_SUCCESS) {
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to allocate staging index buffer memory");
+	}
+	
+	if (vkBindBufferMemory(device, stagingBuffer, stagingBufferMemory, 0)
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to bind staging index buffer memory");
+	}
+
+	void						*data;
+
+	if (vkMapMemory(device, stagingBufferMemory, 0, VK_WHOLE_SIZE, 0, &data)
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to map memory");
+	}
+
+	memcpy(data, indices.data(), indices.size() * sizeof(uint32_t));
+	vkUnmapMemory(device, stagingBufferMemory);
+
+	VkCommandBuffer				tmpBuffer = VK_NULL_HANDLE;
+	VkCommandBufferAllocateInfo	tmpBufferInfo{};
+
+	tmpBufferInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	tmpBufferInfo.commandPool = commandPool;
+	tmpBufferInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	tmpBufferInfo.commandBufferCount = 1;
+
+	if (vkAllocateCommandBuffers(device, &tmpBufferInfo, &tmpBuffer)
+		!= VK_SUCCESS) {
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to allocate command buffer");	
+	}
+
+	VkCommandBufferBeginInfo	beginInfo{};
+
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	if (vkBeginCommandBuffer(tmpBuffer, &beginInfo)
+		!= VK_SUCCESS) {
+		vkFreeCommandBuffers(device, commandPool, 1, &tmpBuffer);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		throw std::runtime_error("Failed to begin command buffer");
+	}
+	
+	VkBufferCopy				copyRegion{};
+
+	copyRegion.dstOffset = 0;
+	copyRegion.srcOffset = 0;
+	copyRegion.size = indices.size() * sizeof(uint32_t);
+	vkCmdCopyBuffer(tmpBuffer, stagingBuffer, indexBuffer, 1, &copyRegion);
 
 	if (vkEndCommandBuffer(tmpBuffer)
 		!= VK_SUCCESS) {

@@ -58,6 +58,7 @@ private:
 	void						createCommandPool();
 	void						createCommandBuffers();
 	void						createVertexBuffer();
+	void						createIndexBuffer();
 
 	GLFWwindow *					window;
 	static int constexpr			WIDTH = 800;
@@ -94,6 +95,8 @@ private:
 	std::vector<uint32_t>			indices;
 	VkBuffer						vertexBuffer;
 	VkDeviceMemory					vertexBufferMemory;
+	VkBuffer						indexBuffer;
+	VkDeviceMemory					indexBufferMemory;
 };
 
 #endif
