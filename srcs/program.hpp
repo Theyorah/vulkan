@@ -39,31 +39,34 @@ public:
 
 private:
 
-	void						initWindow();
-	void						initVulkan();
-	void						mainLoop();
-	void						createInstance();
-	void						createSurface();
-	void						pickPhysicalDevice();
-	void						createLogicalDevice();
-	void						createSwapChain();
-	void						createImageViews();
-	void						createRenderPass();
-	uint32_t					findMemoryType(uint32_t const & typeFilter,
+	void							initWindow();
+	void							initVulkan();
+	void							mainLoop();
+	void							createInstance();
+	void							createSurface();
+	void							pickPhysicalDevice();
+	void							createLogicalDevice();
+	void							createSwapChain();
+	void							createImageViews();
+	void							createRenderPass();
+	uint32_t						findMemoryType(uint32_t const & typeFilter,
 		VkMemoryPropertyFlags const & properties);
-	void						createDepthRessources();
-	void						createFrameBuffers();
-	VkShaderModule				createShaderModule(std::vector<uint32_t> const & code);
-	void						createGraphicsPipeline();
-	void						createCommandPool();
-	void						createCommandBuffers();
-	void						createVertexBuffer();
-	void						createIndexBuffer();
-	void						recordCommandBuffers();
+	void							createDepthRessources();
+	void							createFrameBuffers();
+	VkShaderModule					createShaderModule(std::vector<uint32_t> const & code);
+	void							createGraphicsPipeline();
+	void							createCommandPool();
+	void							createCommandBuffers();
+	void							createVertexBuffer();
+	void							createIndexBuffer();
+	void							recordCommandBuffers();
+	void							createSyncObjects();
 
 	GLFWwindow *					window;
 	static int constexpr			WIDTH = 800;
 	static int constexpr			HEIGHT = 600;
+
+	static uint32_t constexpr		MAX_FRAMES_IN_FLIGHT = 2;
 
     #ifdef NDEBUG
 		bool const					enableValidationLayers = false;
@@ -98,6 +101,10 @@ private:
 	VkDeviceMemory					vertexBufferMemory;
 	VkBuffer						indexBuffer;
 	VkDeviceMemory					indexBufferMemory;
+	std::vector<VkSemaphore>		imageAvailableSemaphores;
+	std::vector<VkSemaphore>		renderFinishedSemaphores;
+	std::vector<VkFence>			inFlightFences;
+	uint32_t						currentFrame;
 };
 
 #endif

@@ -247,11 +247,24 @@ Program::Program() {
 		7, 3, 0,
 		7, 0, 4
 	};
+	currentFrame = 0;
 }
 
 Program::~Program() {
 	if (device != VK_NULL_HANDLE) {
 		vkDeviceWaitIdle(device);
+	}
+	for (VkSemaphore const & semaphore : imageAvailableSemaphores) {
+		if (semaphore != VK_NULL_HANDLE)
+			vkDestroySemaphore(device, semaphore, nullptr);
+	}
+	for (VkSemaphore const & semaphore : renderFinishedSemaphores) {
+		if (semaphore != VK_NULL_HANDLE)
+			vkDestroySemaphore(device, semaphore, nullptr);
+	}
+	for (VkFence const & fence : inFlightFences) {
+		if (fence != VK_NULL_HANDLE)
+			vkDestroyFence(device, fence, nullptr);
 	}
 	if (indexBuffer != VK_NULL_HANDLE) {
 		vkDestroyBuffer(device, indexBuffer, nullptr);
@@ -274,23 +287,28 @@ Program::~Program() {
 	if (pipelineLayout != VK_NULL_HANDLE) {
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 	}
-	for (VkFramebuffer frameBuffer : frameBuffers) {
-		vkDestroyFramebuffer(device, frameBuffer, nullptr);
+	for (VkFramebuffer const & frameBuffer : frameBuffers) {
+		if (frameBuffer != VK_NULL_HANDLE)
+			vkDestroyFramebuffer(device, frameBuffer, nullptr);
 	}
-	for (VkImageView imageView : depthImageViews) {
-		vkDestroyImageView(device, imageView, nullptr);
+	for (VkImageView const & imageView : depthImageViews) {
+		if (imageView != VK_NULL_HANDLE)
+			vkDestroyImageView(device, imageView, nullptr);
 	}
-	for (VkImage image : depthImages) {
+	for (VkImage const & image : depthImages) {
+		if (image != VK_NULL_HANDLE)
 		vkDestroyImage(device, image, nullptr);
 	}
-	for (VkDeviceMemory memory : depthImageMemories) {
-		vkFreeMemory(device, memory, nullptr);
+	for (VkDeviceMemory const & memory : depthImageMemories) {
+		if (memory != VK_NULL_HANDLE)
+			vkFreeMemory(device, memory, nullptr);
 	}
 	if (renderPass != VK_NULL_HANDLE) {
 		vkDestroyRenderPass(device, renderPass, nullptr);
 	}
-	for (VkImageView imageView : swapChainImageViews) {
-		vkDestroyImageView(device, imageView, nullptr);
+	for (VkImageView const & imageView : swapChainImageViews) {
+		if (imageView != VK_NULL_HANDLE)
+			vkDestroyImageView(device, imageView, nullptr);
 	}
 	if (swapChain != VK_NULL_HANDLE) {
 		vkDestroySwapchainKHR(device, swapChain, nullptr);
@@ -350,6 +368,7 @@ void	Program::initVulkan() {
 	createVertexBuffer();
 	createIndexBuffer();
 	recordCommandBuffers();
+	createSyncObjects();
 }
 
 void	Program::createInstance() {
@@ -511,13 +530,13 @@ void	Program::createSwapChain() {
 	uint32_t					image;
 	if (vkGetSwapchainImagesKHR(device, swapChain, &image, nullptr) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query swapchain images");
-	swapChainImages.resize(image);
+	swapChainImages.resize(image, VK_NULL_HANDLE);
 	if (vkGetSwapchainImagesKHR(device, swapChain, &image, swapChainImages.data()) != VK_SUCCESS)
 		throw std::runtime_error("Failed to query swapchain images");
 }
 
 void	Program::createImageViews() {
-	swapChainImageViews.resize(swapChainImages.size());
+	swapChainImageViews.resize(swapChainImages.size(), VK_NULL_HANDLE);
 	for (size_t i = 0; i < swapChainImages.size(); ++i) {
 		VkImageViewCreateInfo	createInfo{};
 
@@ -625,9 +644,9 @@ uint32_t	Program::findMemoryType(uint32_t const & typeFilter, VkMemoryPropertyFl
 }
 
 void	Program::createDepthRessources() {
-	depthImages.resize(swapChainImages.size());
-	depthImageMemories.resize(swapChainImages.size());
-	depthImageViews.resize(swapChainImages.size());
+	depthImages.resize(swapChainImages.size(), VK_NULL_HANDLE);
+	depthImageMemories.resize(swapChainImages.size(), VK_NULL_HANDLE);
+	depthImageViews.resize(swapChainImages.size(), VK_NULL_HANDLE);
 
 	for (size_t i = 0; i < depthImages.size(); ++i) {
 		VkImageCreateInfo	createInfo{};
@@ -687,7 +706,7 @@ void	Program::createDepthRessources() {
 }
 
 void	Program::createFrameBuffers() {
-	frameBuffers.resize(swapChainImageViews.size());
+	frameBuffers.resize(swapChainImageViews.size(), VK_NULL_HANDLE);
 	for (size_t i = 0; i < frameBuffers.size(); ++i) {
 		VkFramebufferCreateInfo	createInfo{};
 		VkImageView				attachments[] = {
@@ -1246,5 +1265,38 @@ void	Program::recordCommandBuffers() {
 		vkCmdEndRenderPass(commandBuffers[i]);
 		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
 			throw std::runtime_error("Failed to end command buffer");
+	}
+}
+
+void	Program::createSyncObjects() {
+	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+	renderFinishedSemaphores.resize(swapChainImages.size(), VK_NULL_HANDLE);
+	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT, VK_NULL_HANDLE);
+
+	VkSemaphoreCreateInfo	semaphoreCreateInfo{};
+
+	semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	for (VkSemaphore & semaphore : imageAvailableSemaphores) {
+		if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphore)
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to create semaphore");
+	}
+
+	for (VkSemaphore & semaphore : renderFinishedSemaphores) {
+		if (vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphore)
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to create semaphore");
+	}
+
+	VkFenceCreateInfo		fenceCreateInfo{};
+
+	fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	for (VkFence & fence : inFlightFences) {
+		if (vkCreateFence(device, &fenceCreateInfo, nullptr, &fence)
+			!= VK_SUCCESS)
+			throw std::runtime_error("Failed to create fence");
 	}
 }
