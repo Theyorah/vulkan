@@ -346,10 +346,10 @@ void	Program::initVulkan() {
 	createGraphicsPipeline();
 	createDepthRessources();
 	createFrameBuffers();
-	createCommandPool();
 	createCommandBuffers();
 	createVertexBuffer();
 	createIndexBuffer();
+	recordCommandBuffers();
 }
 
 void	Program::createInstance() {
@@ -727,12 +727,12 @@ void	Program::createGraphicsPipeline() {
 
 	vertexShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	vertexShaderStageCreateInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-	vertexShaderStageCreateInfo.module = createShaderModule(readSpirvFile("shaders/shader.vert.spv"));
+	vertexShaderStageCreateInfo.module = createShaderModule(readSpirvFile("srcs/shaders/shader.vert.spv"));
 	vertexShaderStageCreateInfo.pName = "main";
 
 	fragmentShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	fragmentShaderStageCreateInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	fragmentShaderStageCreateInfo.module = createShaderModule(readSpirvFile("shaders/shader.frag.spv"));
+	fragmentShaderStageCreateInfo.module = createShaderModule(readSpirvFile("srcs/shaders/shader.frag.spv"));
 	fragmentShaderStageCreateInfo.pName = "main";
 
 	VkPipelineShaderStageCreateInfo 		shaderStagesCreateInfo[]
